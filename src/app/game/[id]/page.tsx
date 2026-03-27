@@ -152,65 +152,65 @@ export default function GamePage() {
 
   return (
     <div className={styles.layout}>
-      {/* ── Sidebar ── */}
+      {/* ── Board (FullScreen Background) ── */}
+      <main className={styles.board}>
+        <Canvas
+          planets={planets}
+          fleets={fleets}
+          player={player}
+          currentYear={game.currentYear}
+          onPlanetClick={handlePlanetClick}
+        />
+      </main>
+
+      {/* ── HUD Sidebar (Floating Over Board) ── */}
       <aside className={styles.sidebar}>
-        {/* Logo */}
-        <div className={styles.logoRow}>
-          <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="18" r="17" stroke="var(--accent)" strokeWidth="1.5" />
-            <circle cx="18" cy="18" r="6" fill="var(--accent)" opacity="0.9" />
-            <ellipse cx="18" cy="18" rx="17" ry="6" stroke="var(--accent)" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-          </svg>
-          <span className={styles.logoText}>SPACE</span>
-        </div>
+        
+        {/* Top Info Panel */}
+        <div className={styles.panel}>
+          <div className={styles.logoRow}>
+            <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
+              <circle cx="18" cy="18" r="17" stroke="var(--accent)" strokeWidth="1.5" />
+              <circle cx="18" cy="18" r="6" fill="var(--accent)" opacity="0.9" />
+              <ellipse cx="18" cy="18" rx="17" ry="6" stroke="var(--accent)" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
+            </svg>
+            <span className={styles.logoText}>SPACE</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-secondary)' }}>
+              YEAR <b style={{ color: '#fff', fontSize: 12 }}>{game.currentYear}</b>
+            </span>
+          </div>
 
-        {/* Year */}
-        <div className={styles.yearBlock}>
-          <span className={styles.yearLabel}>Year</span>
-          <span className={styles.yearValue}>{game.currentYear}</span>
-        </div>
-
-        {/* Stats */}
-        <div className={styles.statGroup}>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Planets</span>
-            <span className={styles.statValue}>{myPlanets.length}</span>
-          </div>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Total Ships</span>
-            <span className={styles.statValue}>{myPlanets.reduce((s, p) => s + p.ships, 0)}</span>
-          </div>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>In Transit</span>
-            <span className={styles.statValue}>{fleets.filter((f) => f.owner === user?.uid).length}</span>
-          </div>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Players</span>
-            <span className={styles.statValue}>{game.players.length}</span>
+          <div className={styles.statsRow}>
+            <div className={styles.statBlock}>
+              <span className={styles.statLabel}>Planets</span>
+              <span className={styles.statValue}>{myPlanets.length}</span>
+            </div>
+            <div className={styles.statBlock}>
+              <span className={styles.statLabel}>Total Ships</span>
+              <span className={styles.statValue}>{myPlanets.reduce((s, p) => s + p.ships, 0)}</span>
+            </div>
+            <div className={styles.statBlock}>
+              <span className={styles.statLabel}>In Transit</span>
+              <span className={styles.statValue}>{fleets.filter((f) => f.owner === user?.uid).length}</span>
+            </div>
           </div>
         </div>
 
         {/* ── Fleet Orders Panel ── */}
-        <div className={styles.ordersPanel}>
+        <div className={`${styles.panel} ${styles.ordersPanel}`}>
           <div className={styles.ordersPanelHeader}>
             <span className={styles.ordersTitle}>Fleet Orders</span>
-            {orders.length > 0 && (
-              <span className={styles.ordersBadge}>{orders.length}</span>
-            )}
+            {orders.length > 0 && <span className={styles.ordersBadge}>{orders.length}</span>}
           </div>
 
-          {/* Order builder */}
           <div className={styles.orderBuilder}>
             <div className={styles.orderInputRow}>
               <div className={styles.orderField}>
                 <label className={styles.orderFieldLabel}>From #</label>
                 <input
                   className={styles.orderInput}
-                  type="number"
-                  min={1}
-                  placeholder="–"
-                  value={orderFrom}
-                  onChange={(e) => setOrderFrom(e.target.value)}
+                  type="number" min={1} placeholder="–"
+                  value={orderFrom} onChange={(e) => setOrderFrom(e.target.value)}
                 />
               </div>
               <span className={styles.orderArrow}>→</span>
@@ -218,22 +218,16 @@ export default function GamePage() {
                 <label className={styles.orderFieldLabel}>To #</label>
                 <input
                   className={styles.orderInput}
-                  type="number"
-                  min={1}
-                  placeholder="–"
-                  value={orderTo}
-                  onChange={(e) => setOrderTo(e.target.value)}
+                  type="number" min={1} placeholder="–"
+                  value={orderTo} onChange={(e) => setOrderTo(e.target.value)}
                 />
               </div>
               <div className={styles.orderField}>
                 <label className={styles.orderFieldLabel}>Ships</label>
                 <input
                   className={styles.orderInput}
-                  type="number"
-                  min={1}
-                  placeholder="–"
-                  value={orderShips}
-                  onChange={(e) => setOrderShips(e.target.value)}
+                  type="number" min={1} placeholder="–"
+                  value={orderShips} onChange={(e) => setOrderShips(e.target.value)}
                 />
               </div>
             </div>
@@ -246,40 +240,33 @@ export default function GamePage() {
             </button>
           </div>
 
-          {/* Staged orders list */}
           <div className={styles.ordersList}>
             <AnimatePresence>
               {orders.length === 0 ? (
-                <p className={styles.ordersEmpty}>
-                  No orders queued. Click a planet or fill in the fields above.
-                </p>
+                <p className={styles.ordersEmpty}>No orders queued.</p>
               ) : (
-                orders.map((order) => {
-                  const fromP = planets.find((p) => p.id === order.fromPlanetId);
-                  const toP = planets.find((p) => p.id === order.toPlanetId);
-                  return (
-                    <motion.div
-                      key={order.id}
-                      className={styles.orderRow}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 8 }}
-                      transition={{ duration: 0.15 }}
+                orders.map((order) => (
+                  <motion.div
+                    key={order.id}
+                    className={styles.orderRow}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 8 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <span className={styles.orderRowLabel}>
+                      #{planetIndex(order.fromPlanetId)} → #{planetIndex(order.toPlanetId)}
+                    </span>
+                    <span className={styles.orderRowShips}>{order.ships} ships</span>
+                    <button
+                      className={styles.orderRemoveBtn}
+                      onClick={() => removeOrder(order.id)}
+                      aria-label="Remove order"
                     >
-                      <span className={styles.orderRowLabel}>
-                        #{planetIndex(order.fromPlanetId)} → #{planetIndex(order.toPlanetId)}
-                      </span>
-                      <span className={styles.orderRowShips}>{order.ships} ships</span>
-                      <button
-                        className={styles.orderRemoveBtn}
-                        onClick={() => removeOrder(order.id)}
-                        aria-label="Remove order"
-                      >
-                        ✕
-                      </button>
-                    </motion.div>
-                  );
-                })
+                      ✕
+                    </button>
+                  </motion.div>
+                ))
               )}
             </AnimatePresence>
           </div>
@@ -288,7 +275,7 @@ export default function GamePage() {
             <button
               id="launch-all-btn"
               className="btn btn-primary"
-              style={{ width: '100%', marginTop: 8 }}
+              style={{ padding: '10px' }}
               onClick={launchAllOrders}
               disabled={busy}
             >
@@ -297,18 +284,16 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* Game ID */}
-        <div className={styles.gameId}>
-          <span className={styles.statLabel}>Game ID</span>
-          <span className="mono" style={{ fontSize: 10, color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
-            {gameId}
-          </span>
-        </div>
-
-        <div className={styles.sidebarFooter}>
+        {/* Bottom Actions */}
+        <div className={`${styles.panel} ${styles.actionsPanel}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>GAME ID</span>
+            <span className="mono" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{gameId}</span>
+          </div>
           <button
             id="end-turn-btn"
             className="btn btn-primary"
+            style={{ fontWeight: 800, letterSpacing: '0.05em', padding: '12px' }}
             onClick={handleEndTurn}
             disabled={busy}
           >
@@ -317,23 +302,13 @@ export default function GamePage() {
           <button
             id="leave-game-btn"
             className="btn btn-ghost"
+            style={{ fontSize: 11 }}
             onClick={() => router.push('/lobby')}
           >
-            ← Lobby
+            ← Return to Lobby
           </button>
         </div>
       </aside>
-
-      {/* ── Board ── */}
-      <main className={styles.board}>
-        <Canvas
-          planets={planets}
-          fleets={fleets}
-          player={player}
-          currentYear={game.currentYear}
-          onPlanetClick={handlePlanetClick}
-        />
-      </main>
 
       {/* Toast */}
       <AnimatePresence>

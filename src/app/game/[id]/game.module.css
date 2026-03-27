@@ -1,21 +1,50 @@
 .layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
+  position: relative;
+  width: 100vw;
   height: 100dvh;
   overflow: hidden;
+  background: radial-gradient(ellipse at 50% 50%, #0a0a1e 0%, #050508 100%);
 }
 
-/* ── Sidebar ── */
+/* ── Board (FullScreen) ── */
+.board {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ── HUD Sidebar (Floating Over Board) ── */
 .sidebar {
-  background: rgba(8, 8, 18, 0.95);
-  border-right: 1px solid rgba(123, 123, 255, 0.1);
-  padding: 24px 20px;
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 280px;
+  max-height: calc(100dvh - 48px);
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+  pointer-events: none; /* Let clicks pass through empty space to the canvas */
   overflow-y: auto;
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
+.panel {
+  background: rgba(8, 8, 18, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(123, 123, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto; /* Re-enable clicks inside panels */
+}
+
+/* Header / Title */
 .logoRow {
   display: flex;
   align-items: center;
@@ -29,81 +58,41 @@
   color: var(--accent);
 }
 
-/* Year display */
-.yearBlock {
+/* Stats Row */
+.statsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.statBlock {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  border-radius: 10px;
-  background: var(--accent-dim);
-  border: 1px solid var(--accent-glow);
-  text-align: center;
-}
-.yearLabel {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.yearValue {
-  font-family: var(--font-mono);
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-/* Stats */
-.statGroup { display: flex; flex-direction: column; gap: 4px; }
-.stat {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: var(--surface-2);
+  gap: 2px;
 }
 .statLabel {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
 }
 .statValue {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.gameId {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-
 /* ── Fleet Orders Panel ── */
-.ordersPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid rgba(123, 123, 255, 0.18);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgba(13, 13, 30, 0.6);
-}
-
 .ordersPanelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 4px;
 }
 .ordersTitle {
   font-size: 11px;
@@ -126,20 +115,17 @@
   flex-direction: column;
   gap: 8px;
 }
-
 .orderInputRow {
   display: flex;
   align-items: flex-end;
   gap: 6px;
 }
-
 .orderField {
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex: 1;
 }
-
 .orderFieldLabel {
   font-size: 9px;
   font-weight: 700;
@@ -147,7 +133,6 @@
   text-transform: uppercase;
   color: var(--text-secondary);
 }
-
 .orderInput {
   width: 100%;
   padding: 7px 8px;
@@ -191,10 +176,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 160px;
+  max-height: 140px;
   overflow-y: auto;
 }
-
 .ordersEmpty {
   font-size: 11px;
   color: var(--text-secondary);
@@ -202,7 +186,6 @@
   padding: 8px 0;
   line-height: 1.5;
 }
-
 .orderRow {
   display: flex;
   align-items: center;
@@ -232,25 +215,16 @@
   font-size: 11px;
   padding: 2px 4px;
   border-radius: 4px;
-  line-height: 1;
   transition: color 0.1s;
 }
 .orderRemoveBtn:hover { color: var(--danger); }
 
-/* ── Sidebar footer ── */
-.sidebarFooter {
+/* Bottom Action / Footer */
+.actionsPanel {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: auto;
-}
-
-
-/* ── Board ── */
-.board {
-  position: relative;
-  background: radial-gradient(ellipse at 50% 50%, #0a0a1e 0%, #050508 100%);
-  overflow: hidden;
 }
 
 /* ── Loading ── */
@@ -294,10 +268,24 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+  .sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    border-radius: 20px 20px 0 0;
+    background: rgba(8, 8, 18, 0.98);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(123, 123, 255, 0.2);
+    padding: 20px 16px;
+    max-height: 60dvh;
+    pointer-events: auto; /* On mobile, the whole drawer is clickable */
   }
-  .sidebar { flex-direction: row; flex-wrap: wrap; padding: 16px; overflow: auto; }
-  .yearBlock { display: none; }
+  .panel {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    backdrop-filter: none;
+  }
 }

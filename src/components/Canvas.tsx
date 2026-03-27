@@ -77,48 +77,6 @@ export default function Canvas({
 
     const revealedSet = new Set(player?.revealedPlanets ?? []);
 
-    // ── Fleet travel lines ──────────────────────────────────────────────
-    for (const fleet of fleets) {
-      const fp = planets.find((p) => p.id === fleet.fromPlanetId);
-      const tp = planets.find((p) => p.id === fleet.toPlanetId);
-      if (!fp || !tp) continue;
-
-      const from = toPixel(fp);
-      const to = toPixel(tp);
-      const totalYears = fleet.arriveYear - fleet.departYear;
-      const progress = Math.min(1, (currentYear - fleet.departYear) / totalYears);
-      const fx = from.x + (to.x - from.x) * progress;
-      const fy = from.y + (to.y - from.y) * progress;
-
-      // Dashed line
-      ctx.save();
-      ctx.setLineDash([6, 10]);
-      ctx.strokeStyle = 'rgba(123, 123, 255, 0.35)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(to.x, to.y);
-      ctx.stroke();
-
-      // Fleet pip
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#7b7bff';
-      ctx.shadowColor = '#7b7bff';
-      ctx.shadowBlur = 14;
-      ctx.beginPath();
-      ctx.arc(fx, fy, 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Ship count on fleet
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 10px "Space Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(String(fleet.ships), fx, fy - 8);
-      ctx.restore();
-    }
-
     // ── Planets ──────────────────────────────────────────────────────────
     for (const planet of planets) {
       const { x, y } = toPixel(planet);
@@ -234,14 +192,6 @@ export default function Canvas({
       ctx.font = '11px "Space Mono", monospace';
       ctx.textBaseline = 'bottom';
       ctx.fillText(`#${idx}`, x, y - radius - 6);
-
-      // ── "HOME" badge or ownership indicator (below planet) ────────────
-      if (isHome) {
-        ctx.fillStyle = 'rgba(68,255,170,0.7)';
-        ctx.font = 'bold 9px "Space Mono", monospace';
-        ctx.textBaseline = 'top';
-        ctx.fillText('HOME', x, y + radius + 5);
-      }
 
       ctx.restore();
     }
