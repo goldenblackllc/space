@@ -31,7 +31,28 @@ export default function GamePage() {
   const [fleets, setFleets] = useState<Fleet[]>([]);
   const [player, setPlayer] = useState<Player | null>(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState('');
+
+  // ── Toast queue ───────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<string[]>([]);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function queueToast(msg: string) {
+    setToasts((prev) => [...prev, msg]);
+  }
+
+  // Show each toast for 3s then shift to next
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    if (toastTimer.current) return; // already running
+    toastTimer.current = setTimeout(() => {
+      setToasts((prev) => prev.slice(1));
+      toastTimer.current = null;
+    }, 3000);
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = null;
+    };
+  }, [toasts]);
 
   // ── Tap-to-Target State ───────────────────────────────────────────────
   const [origin, setOrigin] = useState<Planet | null>(null);
@@ -55,9 +76,29 @@ export default function GamePage() {
     return () => unsubs.forEach((u) => u());
   }, [gameId, user]);
 
+  // ── Colonization detection ─────────────────────────────────────────────
+  const prevPlanetsRef = useRef<Planet[]>([]);
+  useEffect(() => {
+    if (!user || prevPlanetsRef.current.length === 0) {
+      prevPlanetsRef.current = planets;
+      return;
+    }
+    const prevMap = new Map(prevPlanetsRef.current.map((p) => [p.id, p.owner]));
+    for (const planet of planets) {
+      const wasOwner = prevMap.get(planet.id);
+      if (wasOwner === null && planet.owner === user.uid) {
+        // Neutral → colonized by us
+        queueToast(`Planet colonized`);
+      }
+    }
+    prevPlanetsRef.current = planets;
+  }, [planets, user]);
+
+  // Legacy single-toast helper (for validation errors)
+  const [errorToast, setErrorToast] = useState('');
   function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3500);
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(''), 3500);
   }
 
   function clearSelection() {
@@ -282,17 +323,38 @@ export default function GamePage() {
         ← Lobby
       </button>
 
-      {/* ── Toast ── */}
+      {/* ── Colonization toasts (queue) ── */}
       <AnimatePresence>
-        {toast && (
+        {toasts[0] && (
           <motion.div
-            key="toast"
+            key={toasts[0] + toasts.length}
+            className={styles.toast}
+            style={{ bottom: 104 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+          >
+            ⬡ {toasts[0]}
+            {toasts.length > 1 && (
+              <span style={{ marginLeft: 8, opacity: 0.5, fontSize: 10 }}>
+                +{toasts.length - 1} more
+              </span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Error toast ── */}
+      <AnimatePresence>
+        {errorToast && (
+          <motion.div
+            key="error-toast"
             className={styles.toast}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            {toast}
+            {errorToast}
           </motion.div>
         )}
       </AnimatePresence>
