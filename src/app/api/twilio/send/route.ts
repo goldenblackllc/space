@@ -14,9 +14,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'A valid phone number is required.' }, { status: 400 });
     }
 
+    let digits = phone.replace(/\\D/g, '');
+    if (digits.length === 10) digits = '1' + digits;
+    const formattedPhone = `+${digits}`;
+
     const verification = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
-      .verifications.create({ to: phone, channel: 'sms' });
+      .verifications.create({ to: formattedPhone, channel: 'sms' });
 
     return Response.json({ success: true, status: verification.status });
   } catch (err: unknown) {

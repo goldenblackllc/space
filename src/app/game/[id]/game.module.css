@@ -89,6 +89,163 @@
   border: 1px solid var(--border);
 }
 
+/* ── Fleet Orders Panel ── */
+.ordersPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(123, 123, 255, 0.18);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(13, 13, 30, 0.6);
+}
+
+.ordersPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ordersTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ordersBadge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+.orderBuilder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orderInputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.orderField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.orderFieldLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.orderInput {
+  width: 100%;
+  padding: 7px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.orderInput:focus { border-color: var(--accent); }
+.orderInput::-webkit-inner-spin-button,
+.orderInput::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.orderArrow {
+  font-size: 14px;
+  color: var(--accent);
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.orderAddBtn {
+  width: 100%;
+  padding: 8px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(123, 123, 255, 0.25);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.orderAddBtn:hover:not(:disabled) { background: rgba(123, 123, 255, 0.25); }
+.orderAddBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.ordersEmpty {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 8px 0;
+  line-height: 1.5;
+}
+
+.orderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.orderRowLabel {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.orderRowShips {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.orderRemoveBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.orderRemoveBtn:hover { color: var(--danger); }
+
+/* ── Sidebar footer ── */
+.sidebarFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+
 /* ── Board ── */
 .board {
   position: relative;
