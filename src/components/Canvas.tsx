@@ -11,8 +11,8 @@ interface CanvasProps {
   onPlanetClick?: (planet: Planet) => void;
 }
 
-const PLANET_BASE_RADIUS = 9;
-const MAX_EXTRA_RADIUS = 8;
+const PLANET_BASE_RADIUS = 14;
+const MAX_EXTRA_RADIUS = 12;
 
 export default function Canvas({
   planets,
@@ -109,7 +109,7 @@ export default function Canvas({
 
       if (!isRevealed) {
         // ── Fog of War: clearly visible but mysterious ──────────────────
-        const fogRadius = 7;
+        const fogRadius = 14;
         const fogColor = isSelected ? 'rgba(200, 200, 255, 0.6)' : 'rgba(140, 140, 180, 0.5)';
 
         // Subtle outer ring
@@ -117,7 +117,7 @@ export default function Canvas({
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 5]);
         ctx.beginPath();
-        ctx.arc(x, y, fogRadius + 5, 0, Math.PI * 2);
+        ctx.arc(x, y, fogRadius + 8, 0, Math.PI * 2);
         ctx.stroke();
 
         // Filled circle
@@ -140,8 +140,8 @@ export default function Canvas({
 
         // Planet number
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = 'bold 9px "Space Mono", monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = 'bold 11px "Space Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${idx}`, x, y);
@@ -194,17 +194,17 @@ export default function Canvas({
       ctx.fillText(String(planet.ships), x, y);
 
       // Planet number label (above)
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '9px "Space Mono", monospace';
-      ctx.fillText(`#${idx}`, x, y - radius - 7);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '10px "Space Mono", monospace';
+      ctx.fillText(`#${idx}`, x, y - radius - 9);
 
       ctx.restore();
     }
   }, [planets, fleets, player, selected, dims, toPixel, currentYear]);
 
   function getPlanetRadius(p: Planet, isRevealed: boolean) {
-    if (!isRevealed) return 12 + 5; // fogRadius + hit margin
-    return PLANET_BASE_RADIUS + Math.min(MAX_EXTRA_RADIUS, (p.ships / 40) * MAX_EXTRA_RADIUS) + 5;
+    if (!isRevealed) return 14 + 8; // fogRadius + hit margin
+    return PLANET_BASE_RADIUS + Math.min(MAX_EXTRA_RADIUS, (p.ships / 40) * MAX_EXTRA_RADIUS) + 8;
   }
 
   function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
