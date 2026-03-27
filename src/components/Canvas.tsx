@@ -274,18 +274,18 @@ export default function Canvas({
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
 
-      // ── 4. Ship count label (center of inner circle) ──────────────────
+      // ── 4. Production label (center of inner circle) ─────────────────
       ctx.fillStyle = isMyPlanet ? '#06060e' : 'rgba(255,255,255,0.85)';
       ctx.font = `bold ${prodR >= 18 ? 12 : 10}px "Space Mono", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(planet.ships), x, y);
+      ctx.fillText(String(planet.productionBase ?? 0), x, y);
 
-      // ── 5. Planet index above shield ──────────────────────────────────
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.font = '9px "Space Mono", monospace';
+      // ── 5. Ship count above shield ────────────────────────────────────
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.font = `bold 10px "Space Mono", monospace`;
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`${idx}`, x, y - shieldR - 6);
+      ctx.fillText(String(planet.ships), x, y - shieldR - 5);
 
       ctx.restore();
     }
