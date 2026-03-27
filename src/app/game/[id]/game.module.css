@@ -1,233 +1,274 @@
+/* ── Root Layout ─────────────────────────────────────────────────────────── */
 .layout {
   position: relative;
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 50%, #0a0a1e 0%, #050508 100%);
+  background: #06060e;
 }
 
-/* ── Board (FullScreen) ── */
 .board {
   position: absolute;
   inset: 0;
   z-index: 1;
 }
 
-/* ── HUD Sidebar (Floating Over Board) ── */
-.sidebar {
+/* ── Top HUD Bar ─────────────────────────────────────────────────────────── */
+.topHud {
   position: absolute;
-  top: 24px;
-  left: 24px;
-  width: 280px;
-  max-height: calc(100dvh - 48px);
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  pointer-events: none; /* Let clicks pass through empty space to the canvas */
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-.sidebar::-webkit-scrollbar {
-  display: none;
+  align-items: center;
+  gap: 0;
+  height: 48px;
+  padding: 0 20px;
+  background: rgba(6, 6, 14, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.panel {
-  background: rgba(8, 8, 18, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(123, 123, 255, 0.15);
-  border-radius: 12px;
+.hudLogo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-mono);
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+.hudDivider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+
+.hudStats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+}
+
+.hudStat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 16px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.hudStat:first-child {
+  padding-left: 0;
+}
+.hudStat:last-child {
+  border-right: none;
+}
+
+.hudStatLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-mono);
+}
+
+.hudStatValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-mono);
+}
+
+/* Contextual instruction (right side of HUD) */
+.hudHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ── Ship Dispatch Modal ─────────────────────────────────────────────────── */
+.modal {
+  position: absolute;
+  z-index: 20;
+  width: 220px;
+  background: rgba(12, 12, 22, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  pointer-events: auto; /* Re-enable clicks inside panels */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
 }
 
-/* Header / Title */
-.logoRow {
+.modalTitle {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+}
+
+.modalShipCount {
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: var(--font-mono);
+  text-align: center;
+  line-height: 1;
+}
+
+.modalShipCountSub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.modalSlider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.modalSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.modalSlider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+}
+
+.modalConfirm {
+  flex: 1;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #06060e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: opacity 0.15s;
+}
+.modalConfirm:hover { opacity: 0.85; }
+.modalConfirm:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.modalCancel {
+  padding: 10px 14px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: color 0.15s, border-color 0.15s;
+}
+.modalCancel:hover {
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── FAB End Turn ────────────────────────────────────────────────────────── */
+.fab {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.logoText {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  color: var(--accent);
-}
-
-/* Stats Row */
-.statsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--surface-2);
-  padding: 8px 12px;
-  border-radius: 8px;
-}
-.statBlock {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.statLabel {
-  font-size: 9px;
+  padding: 0 28px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #06060e;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
-}
-.statValue {
   font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s, opacity 0.15s;
+  white-space: nowrap;
 }
+.fab:hover { transform: translateX(-50%) translateY(-2px); }
+.fab:active { transform: translateX(-50%) translateY(0); }
+.fab:disabled { opacity: 0.4; cursor: not-allowed; transform: translateX(-50%); }
 
-/* ── Fleet Orders Panel ── */
-.ordersPanelHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.ordersTitle {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.ordersBadge {
-  background: var(--accent);
+.fabBadge {
+  background: #06060e;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
   border-radius: 20px;
-  padding: 1px 7px;
+  padding: 2px 8px;
+  margin-left: 2px;
 }
 
-.orderBuilder {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.orderInputRow {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-.orderField {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-.orderFieldLabel {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-.orderInput {
-  width: 100%;
-  padding: 7px 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-primary);
+/* ── Lobby Link ───────────────────────────────────────────────────────────── */
+.lobbyLink {
+  position: fixed;
+  bottom: 36px;
+  right: 24px;
+  z-index: 10;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
   font-family: var(--font-mono);
-  font-size: 13px;
-  text-align: center;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.orderInput:focus { border-color: var(--accent); }
-.orderInput::-webkit-inner-spin-button,
-.orderInput::-webkit-outer-spin-button { -webkit-appearance: none; }
-
-.orderArrow {
-  font-size: 14px;
-  color: var(--accent);
-  padding-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.orderAddBtn {
-  width: 100%;
-  padding: 8px;
-  background: var(--accent-dim);
-  border: 1px solid rgba(123, 123, 255, 0.25);
-  border-radius: 6px;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 0.15s;
-}
-.orderAddBtn:hover:not(:disabled) { background: rgba(123, 123, 255, 0.25); }
-.orderAddBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.ordersList {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 140px;
-  overflow-y: auto;
-}
-.ordersEmpty {
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 8px 0;
-  line-height: 1.5;
-}
-.orderRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  background: var(--surface-2);
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-.orderRowLabel {
-  flex: 1;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-primary);
-}
-.orderRowShips {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 700;
-}
-.orderRemoveBtn {
   background: none;
   border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 11px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: color 0.1s;
+  padding: 4px;
+  transition: color 0.15s;
 }
-.orderRemoveBtn:hover { color: var(--danger); }
+.lobbyLink:hover { color: rgba(255, 255, 255, 0.6); }
 
-/* Bottom Action / Footer */
-.actionsPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-}
-
-/* ── Loading ── */
+/* ── Loading ─────────────────────────────────────────────────────────────── */
 .loading {
   height: 100dvh;
   display: flex;
@@ -235,57 +276,38 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  color: var(--text-secondary);
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  background: #06060e;
 }
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.6);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Toast ── */
+/* ── Toast ───────────────────────────────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: 32px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(13, 13, 26, 0.95);
+  background: rgba(12, 12, 22, 0.95);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(123, 123, 255, 0.2);
-  border-radius: 8px;
-  padding: 12px 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: var(--font-mono);
   white-space: nowrap;
-  z-index: 100;
+  z-index: 30;
   pointer-events: none;
-}
-
-/* ── Responsive ── */
-@media (max-width: 640px) {
-  .sidebar {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    width: 100vw;
-    border-radius: 20px 20px 0 0;
-    background: rgba(8, 8, 18, 0.98);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(123, 123, 255, 0.2);
-    padding: 20px 16px;
-    max-height: 60dvh;
-    pointer-events: auto; /* On mobile, the whole drawer is clickable */
-  }
-  .panel {
-    background: transparent;
-    border: none;
-    padding: 0;
-    border-radius: 0;
-    backdrop-filter: none;
-  }
+  letter-spacing: 0.04em;
 }

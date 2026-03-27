@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Canvas from '@/components/Canvas';
+import Canvas, { type FleetOrder } from '@/components/Canvas';
 import {
   subscribeGame,
   subscribePlanets,
@@ -15,12 +15,10 @@ import type { Game, Planet, Fleet, Player } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './game.module.css';
 
-interface FleetOrder {
-  id: string;
-  fromPlanetId: string;
-  toPlanetId: string;
-  ships: number;
-}
+// How far outside the viewport to flip the modal anchor
+const MODAL_W = 228;
+const MODAL_H = 210;
+const MODAL_OFFSET = 20; // px gap from planet
 
 export default function GamePage() {
   const { user, loading } = useAuth();
@@ -35,11 +33,12 @@ export default function GamePage() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
 
-  // Fleet orders register (staged, not yet dispatched)
-  const [orders, setOrders] = useState<FleetOrder[]>([]);
-  const [orderFrom, setOrderFrom] = useState('');
-  const [orderTo, setOrderTo] = useState('');
-  const [orderShips, setOrderShips] = useState('');
+  // ── Tap-to-Target State ───────────────────────────────────────────────
+  const [origin, setOrigin] = useState<Planet | null>(null);
+  const [target, setTarget] = useState<Planet | null>(null);
+  const [modalPos, setModalPos] = useState({ x: 0, y: 0 }); // pixel on canvas
+  const [modalShips, setModalShips] = useState(1);
+  const [pendingOrders, setPendingOrders] = useState<FleetOrder[]>([]);
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -61,264 +60,237 @@ export default function GamePage() {
     setTimeout(() => setToast(''), 3500);
   }
 
-  // Stable planet index (sorted by id for consistency)
-  const sortedIds = useMemo(
-    () => [...planets].sort((a, b) => a.id.localeCompare(b.id)).map((p) => p.id),
-    [planets]
-  );
-  const planetIndex = (id: string) => sortedIds.indexOf(id) + 1;
-  const planetByIdx = (idx: number) => planets.find((p) => sortedIds[idx - 1] === p.id);
-  const myPlanets = planets.filter((p) => p.owner === user?.uid);
-
-  // When canvas planet is clicked, pre-populate the order form
-  function handlePlanetClick(planet: Planet) {
-    if (planet.owner === user?.uid) {
-      setOrderFrom(String(planetIndex(planet.id)));
-      const maxShips = Math.max(0, planet.ships - 1);
-      setOrderShips(String(Math.floor(maxShips / 2)));
-    } else {
-      setOrderTo(String(planetIndex(planet.id)));
-    }
+  function clearSelection() {
+    setOrigin(null);
+    setTarget(null);
+    setModalShips(1);
   }
 
-  function addOrder() {
-    const fromIdx = parseInt(orderFrom);
-    const toIdx = parseInt(orderTo);
-    const ships = parseInt(orderShips);
+  // ── Planet click handler ──────────────────────────────────────────────
+  function handlePlanetClick(planet: Planet, px: number, py: number) {
+    // If tapping the same origin again → deselect
+    if (origin?.id === planet.id) {
+      clearSelection();
+      return;
+    }
 
-    const fromPlanet = planetByIdx(fromIdx);
-    const toPlanet = planetByIdx(toIdx);
+    // If we have an origin and this is a DIFFERENT planet → set target + show modal
+    if (origin && planet.id !== origin.id) {
+      setTarget(planet);
+      // Default to half of origin ships (at least 1)
+      const originPlanet = planets.find((p) => p.id === origin.id);
+      const half = Math.max(1, Math.floor((originPlanet?.ships ?? 2) / 2));
+      setModalShips(half);
 
-    if (!fromPlanet || !toPlanet) return showToast('Invalid planet numbers.');
-    if (fromPlanet.owner !== user?.uid) return showToast("You don't own that planet.");
-    if (fromPlanet.id === toPlanet.id) return showToast('Source and target must differ.');
-    if (isNaN(ships) || ships < 1) return showToast('Enter at least 1 ship.');
-    if (ships >= fromPlanet.ships) return showToast(`Planet #${fromIdx} only has ${fromPlanet.ships} ships. Must keep at least 1.`);
+      // Compute modal position, flipping to stay on screen
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+      let mx = px + MODAL_OFFSET;
+      let my = py - MODAL_H / 2;
+      if (mx + MODAL_W > viewW - 16) mx = px - MODAL_W - MODAL_OFFSET;
+      if (my < 60) my = 60;
+      if (my + MODAL_H > viewH - 80) my = viewH - MODAL_H - 80;
+      setModalPos({ x: mx, y: my });
+      return;
+    }
 
-    setOrders((prev) => [
+    // No origin yet → must be own planet
+    if (planet.owner !== user?.uid) {
+      showToast('Select one of your own planets first.');
+      return;
+    }
+    if (planet.ships < 2) {
+      showToast('Not enough ships to send a fleet.');
+      return;
+    }
+
+    setOrigin(planet);
+    setTarget(null);
+  }
+
+  function confirmOrder() {
+    if (!origin || !target || modalShips < 1) return;
+    const originPlanet = planets.find((p) => p.id === origin.id);
+    if (!originPlanet || modalShips >= originPlanet.ships) {
+      showToast('Must keep at least 1 ship at the source planet.');
+      return;
+    }
+
+    setPendingOrders((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        fromPlanetId: fromPlanet.id,
-        toPlanetId: toPlanet.id,
-        ships,
+        fromPlanetId: origin.id,
+        toPlanetId: target.id,
+        ships: modalShips,
       },
     ]);
-    setOrderFrom('');
-    setOrderTo('');
-    setOrderShips('');
+
+    clearSelection();
   }
 
-  function removeOrder(id: string) {
-    setOrders((prev) => prev.filter((o) => o.id !== id));
-  }
-
-  async function launchAllOrders() {
-    if (!game || orders.length === 0) return;
+  async function handleEndTurn() {
+    if (!game || busy) return;
     setBusy(true);
-    let launched = 0;
-    for (const order of orders) {
+
+    // Dispatch all pending orders first
+    for (const order of pendingOrders) {
       const from = planets.find((p) => p.id === order.fromPlanetId);
       const to = planets.find((p) => p.id === order.toPlanetId);
       if (!from || !to || from.ships <= 1) continue;
       const ships = Math.min(order.ships, from.ships - 1);
       await dispatchFleet(gameId, user!.uid, from, to, ships, game.currentYear);
-      launched++;
     }
-    setOrders([]);
-    setBusy(false);
-    showToast(`✓ ${launched} fleet${launched !== 1 ? 's' : ''} launched`);
-  }
+    setPendingOrders([]);
 
-  async function handleEndTurn() {
-    if (!game || busy) return;
-    if (orders.length > 0) {
-      showToast('Launch or clear your fleet orders before ending the turn.');
-      return;
-    }
-    setBusy(true);
     await advanceTurn(gameId, game.currentYear);
     setBusy(false);
   }
+
+  // ── Derived stats ─────────────────────────────────────────────────────
+  const myPlanets = useMemo(() => planets.filter((p) => p.owner === user?.uid), [planets, user]);
+  const totalShips = useMemo(() => myPlanets.reduce((s, p) => s + p.ships, 0), [myPlanets]);
+  const inTransit = useMemo(() => fleets.filter((f) => f.owner === user?.uid).length, [fleets, user]);
+
+  // Max ships the user can send (origin.ships - 1)
+  const originPlanet = planets.find((p) => p.id === origin?.id);
+  const maxShips = originPlanet ? originPlanet.ships - 1 : 1;
 
   if (!game) {
     return (
       <div className={styles.loading}>
         <div className={styles.spinner} />
-        <span>Loading galaxy…</span>
+        <span>Loading</span>
       </div>
     );
   }
 
+  // Dynamic HUD hint
+  const hudHint = origin
+    ? target
+      ? 'Set ships and confirm'
+      : 'Tap destination planet'
+    : pendingOrders.length > 0
+    ? `${pendingOrders.length} order${pendingOrders.length !== 1 ? 's' : ''} queued`
+    : 'Tap a planet you own';
+
   return (
     <div className={styles.layout}>
-      {/* ── Board (FullScreen Background) ── */}
+      {/* ── Board ── */}
       <main className={styles.board}>
         <Canvas
           planets={planets}
-          fleets={fleets}
           player={player}
-          currentYear={game.currentYear}
+          origin={origin}
+          target={target}
+          pendingOrders={pendingOrders}
           onPlanetClick={handlePlanetClick}
         />
       </main>
 
-      {/* ── HUD Sidebar (Floating Over Board) ── */}
-      <aside className={styles.sidebar}>
-        
-        {/* Top Info Panel */}
-        <div className={styles.panel}>
-          <div className={styles.logoRow}>
-            <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-              <circle cx="18" cy="18" r="17" stroke="var(--accent)" strokeWidth="1.5" />
-              <circle cx="18" cy="18" r="6" fill="var(--accent)" opacity="0.9" />
-              <ellipse cx="18" cy="18" rx="17" ry="6" stroke="var(--accent)" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-            </svg>
-            <span className={styles.logoText}>SPACE</span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-secondary)' }}>
-              YEAR <b style={{ color: '#fff', fontSize: 12 }}>{game.currentYear}</b>
+      {/* ── Top HUD ── */}
+      <header className={styles.topHud}>
+        <span className={styles.hudLogo}>SPACE</span>
+
+        <div className={styles.hudStats}>
+          <div className={styles.hudStat}>
+            <span className={styles.hudStatLabel}>Year</span>
+            <span className={styles.hudStatValue}>{game.currentYear}</span>
+          </div>
+          <div className={styles.hudStat}>
+            <span className={styles.hudStatLabel}>Planets</span>
+            <span className={styles.hudStatValue}>{myPlanets.length}</span>
+          </div>
+          <div className={styles.hudStat}>
+            <span className={styles.hudStatLabel}>Ships</span>
+            <span className={styles.hudStatValue}>{totalShips}</span>
+          </div>
+          <div className={styles.hudStat}>
+            <span className={styles.hudStatLabel}>In Transit</span>
+            <span className={styles.hudStatValue}>{inTransit}</span>
+          </div>
+        </div>
+
+        <span className={styles.hudHint}>{hudHint}</span>
+      </header>
+
+      {/* ── Ship Dispatch Modal ── */}
+      <AnimatePresence>
+        {origin && target && (
+          <motion.div
+            key="modal"
+            className={styles.modal}
+            style={{ left: modalPos.x, top: modalPos.y }}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.12 }}
+          >
+            <span className={styles.modalTitle}>
+              Fleet · #{sortedPlanetIdx(planets, origin.id)} → #{sortedPlanetIdx(planets, target.id)}
             </span>
-          </div>
 
-          <div className={styles.statsRow}>
-            <div className={styles.statBlock}>
-              <span className={styles.statLabel}>Planets</span>
-              <span className={styles.statValue}>{myPlanets.length}</span>
+            <div>
+              <div className={styles.modalShipCount}>{modalShips}</div>
+              <div className={styles.modalShipCountSub}>ships / {maxShips} available</div>
             </div>
-            <div className={styles.statBlock}>
-              <span className={styles.statLabel}>Total Ships</span>
-              <span className={styles.statValue}>{myPlanets.reduce((s, p) => s + p.ships, 0)}</span>
+
+            <input
+              className={styles.modalSlider}
+              type="range"
+              min={1}
+              max={Math.max(1, maxShips)}
+              value={modalShips}
+              onChange={(e) => setModalShips(Number(e.target.value))}
+            />
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalConfirm}
+                onClick={confirmOrder}
+                disabled={modalShips < 1 || modalShips > maxShips}
+              >
+                Confirm
+              </button>
+              <button className={styles.modalCancel} onClick={clearSelection}>
+                Cancel
+              </button>
             </div>
-            <div className={styles.statBlock}>
-              <span className={styles.statLabel}>In Transit</span>
-              <span className={styles.statValue}>{fleets.filter((f) => f.owner === user?.uid).length}</span>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* ── Fleet Orders Panel ── */}
-        <div className={`${styles.panel} ${styles.ordersPanel}`}>
-          <div className={styles.ordersPanelHeader}>
-            <span className={styles.ordersTitle}>Fleet Orders</span>
-            {orders.length > 0 && <span className={styles.ordersBadge}>{orders.length}</span>}
-          </div>
+      {/* ── FAB End Turn ── */}
+      <button
+        id="end-turn-btn"
+        className={styles.fab}
+        onClick={handleEndTurn}
+        disabled={busy}
+      >
+        {busy ? 'Processing' : 'End Turn'}
+        {pendingOrders.length > 0 && !busy && (
+          <span className={styles.fabBadge}>{pendingOrders.length}</span>
+        )}
+      </button>
 
-          <div className={styles.orderBuilder}>
-            <div className={styles.orderInputRow}>
-              <div className={styles.orderField}>
-                <label className={styles.orderFieldLabel}>From #</label>
-                <input
-                  className={styles.orderInput}
-                  type="number" min={1} placeholder="–"
-                  value={orderFrom} onChange={(e) => setOrderFrom(e.target.value)}
-                />
-              </div>
-              <span className={styles.orderArrow}>→</span>
-              <div className={styles.orderField}>
-                <label className={styles.orderFieldLabel}>To #</label>
-                <input
-                  className={styles.orderInput}
-                  type="number" min={1} placeholder="–"
-                  value={orderTo} onChange={(e) => setOrderTo(e.target.value)}
-                />
-              </div>
-              <div className={styles.orderField}>
-                <label className={styles.orderFieldLabel}>Ships</label>
-                <input
-                  className={styles.orderInput}
-                  type="number" min={1} placeholder="–"
-                  value={orderShips} onChange={(e) => setOrderShips(e.target.value)}
-                />
-              </div>
-            </div>
-            <button
-              className={styles.orderAddBtn}
-              onClick={addOrder}
-              disabled={!orderFrom || !orderTo || !orderShips}
-            >
-              + Queue Order
-            </button>
-          </div>
+      {/* ── Lobby link ── */}
+      <button
+        id="leave-game-btn"
+        className={styles.lobbyLink}
+        onClick={() => router.push('/lobby')}
+      >
+        ← Lobby
+      </button>
 
-          <div className={styles.ordersList}>
-            <AnimatePresence>
-              {orders.length === 0 ? (
-                <p className={styles.ordersEmpty}>No orders queued.</p>
-              ) : (
-                orders.map((order) => (
-                  <motion.div
-                    key={order.id}
-                    className={styles.orderRow}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 8 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    <span className={styles.orderRowLabel}>
-                      #{planetIndex(order.fromPlanetId)} → #{planetIndex(order.toPlanetId)}
-                    </span>
-                    <span className={styles.orderRowShips}>{order.ships} ships</span>
-                    <button
-                      className={styles.orderRemoveBtn}
-                      onClick={() => removeOrder(order.id)}
-                      aria-label="Remove order"
-                    >
-                      ✕
-                    </button>
-                  </motion.div>
-                ))
-              )}
-            </AnimatePresence>
-          </div>
-
-          {orders.length > 0 && (
-            <button
-              id="launch-all-btn"
-              className="btn btn-primary"
-              style={{ padding: '10px' }}
-              onClick={launchAllOrders}
-              disabled={busy}
-            >
-              {busy ? 'Launching…' : `🚀 Launch All (${orders.length})`}
-            </button>
-          )}
-        </div>
-
-        {/* Bottom Actions */}
-        <div className={`${styles.panel} ${styles.actionsPanel}`}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 9, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>GAME ID</span>
-            <span className="mono" style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{gameId}</span>
-          </div>
-          <button
-            id="end-turn-btn"
-            className="btn btn-primary"
-            style={{ fontWeight: 800, letterSpacing: '0.05em', padding: '12px' }}
-            onClick={handleEndTurn}
-            disabled={busy}
-          >
-            {busy ? 'Processing…' : 'End Turn →'}
-          </button>
-          <button
-            id="leave-game-btn"
-            className="btn btn-ghost"
-            style={{ fontSize: 11 }}
-            onClick={() => router.push('/lobby')}
-          >
-            ← Return to Lobby
-          </button>
-        </div>
-      </aside>
-
-      {/* Toast */}
+      {/* ── Toast ── */}
       <AnimatePresence>
         {toast && (
           <motion.div
             key="toast"
             className={styles.toast}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            exit={{ opacity: 0 }}
           >
             {toast}
           </motion.div>
@@ -326,4 +298,9 @@ export default function GamePage() {
       </AnimatePresence>
     </div>
   );
+}
+
+function sortedPlanetIdx(planets: Planet[], id: string) {
+  const sorted = [...planets].sort((a, b) => a.id.localeCompare(b.id)).map((p) => p.id);
+  return sorted.indexOf(id) + 1;
 }
