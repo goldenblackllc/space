@@ -33,11 +33,11 @@ export default function GamePage() {
   const [busy, setBusy] = useState(false);
 
   // ── Toast queue ───────────────────────────────────────────────────────
-  const [toasts, setToasts] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<{ ships: number }[]>([]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function queueToast(msg: string) {
-    setToasts((prev) => [...prev, msg]);
+  function queueToast(ships: number) {
+    setToasts((prev) => [...prev, { ships }]);
   }
 
   // Show each toast for 3s then shift to next
@@ -88,7 +88,7 @@ export default function GamePage() {
       const wasOwner = prevMap.get(planet.id);
       if (wasOwner === null && planet.owner === user.uid) {
         // Neutral → colonized by us
-        queueToast(`Planet colonized`);
+        queueToast(planet.ships);
       }
     }
     prevPlanetsRef.current = planets;
@@ -323,22 +323,22 @@ export default function GamePage() {
         ← Lobby
       </button>
 
-      {/* ── Colonization toasts (queue) ── */}
+      {/* ── Colonization notification ── */}
       <AnimatePresence>
         {toasts[0] && (
           <motion.div
-            key={toasts[0] + toasts.length}
-            className={styles.toast}
-            style={{ bottom: 104 }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
+            key={toasts[0].ships + '-' + toasts.length}
+            className={styles.colonizationToast}
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ duration: 0.2 }}
           >
-            ⬡ {toasts[0]}
+            <div className={styles.colonizationLabel}>Planet Colonized</div>
+            <div className={styles.colonizationShips}>{toasts[0].ships}</div>
+            <div className={styles.colonizationSub}>ships arrived</div>
             {toasts.length > 1 && (
-              <span style={{ marginLeft: 8, opacity: 0.5, fontSize: 10 }}>
-                +{toasts.length - 1} more
-              </span>
+              <div className={styles.colonizationMore}>+{toasts.length - 1} more</div>
             )}
           </motion.div>
         )}

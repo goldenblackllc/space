@@ -292,7 +292,62 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Toast ───────────────────────────────────────────────────────────────── */
+/* ── Colonization Notification ───────────────────────────────────────────── */
+.colonizationToast {
+  position: fixed;
+  top: 60px; /* just below the 48px HUD bar */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.97);
+  color: #06060e;
+  border-radius: 10px;
+  padding: 14px 24px;
+  text-align: center;
+  min-width: 180px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.colonizationLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(6, 6, 14, 0.45);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+.colonizationShips {
+  font-size: 40px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+  color: #06060e;
+}
+
+.colonizationSub {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(6, 6, 14, 0.5);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.colonizationMore {
+  font-size: 10px;
+  color: rgba(6, 6, 14, 0.4);
+  font-family: var(--font-mono);
+  margin-top: 8px;
+  border-top: 1px solid rgba(6, 6, 14, 0.08);
+  padding-top: 6px;
+}
+
+/* ── Error Toast ─────────────────────────────────────────────────────────── */
+
 .toast {
   position: fixed;
   bottom: 100px;
