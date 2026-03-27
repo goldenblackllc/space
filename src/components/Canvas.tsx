@@ -21,8 +21,6 @@ interface CanvasProps {
   onPlanetClick: (planet: Planet, pixelX: number, pixelY: number) => void;
 }
 
-const PLANET_MIN_R = 20;
-const PLANET_MAX_R = 38;
 const FOG_R = 16;
 
 // Stable per-session order colors
@@ -65,8 +63,29 @@ export default function Canvas({
     return () => ro.disconnect();
   }, []);
 
-  function getR(p: Planet) {
-    return PLANET_MIN_R + Math.min(1, p.ships / 80) * (PLANET_MAX_R - PLANET_MIN_R);
+  // Inner circle: sized by production base (1–20 scale)
+  const PROD_MIN_R = 10;
+  const PROD_MAX_R = 22;
+  function getProdR(p: Planet) {
+    return PROD_MIN_R + Math.min(1, (p.productionBase ?? 10) / 20) * (PROD_MAX_R - PROD_MIN_R);
+  }
+
+  // Outer shield: radius, lineWidth, opacity all scale with ships
+  function getShield(ships: number) {
+    const t = Math.min(1, ships / 60); // saturates at 60 ships
+    return {
+      extraR: 6 + t * 18,         // 6px → 24px beyond inner edge
+      lineWidth: 0.5 + t * 3,    // 0.5px → 3.5px
+      opacity: 0.08 + t * 0.6,   // near-invisible → solid
+      blur: t * 18,               // 0 → 18px glow
+    };
+  }
+
+  // Total radius for hit testing
+  function getHitR(p: Planet) {
+    const prod = getProdR(p);
+    const { extraR } = getShield(p.ships);
+    return prod + extraR + 10;
   }
 
   // ── Draw ────────────────────────────────────────────────────────────────
@@ -200,69 +219,72 @@ export default function Canvas({
         continue;
       }
 
-      // ── Revealed Planet ───────────────────────────────────────────────
-      const r = getR(planet);
-
-      // Colors: my planets = warm white, enemy = muted red, neutral = cool grey
-      const baseColor = isMyPlanet
-        ? '#e8e8e0'
-        : isOwned
-        ? '#c47070'
-        : '#6e6e80';
-
+      // ── Revealed Planet (two-circle) ─────────────────────────────────
+      const prodR = getProdR(planet);
+      const shield = getShield(planet.ships);
+      const shieldR = prodR + shield.extraR;
       const isSelected = isOrigin || isTarget;
 
-      // Glow for selected or own planets
-      if (isSelected) {
-        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-        ctx.shadowBlur = 28;
-      } else if (isMyPlanet) {
-        ctx.shadowColor = 'rgba(232, 232, 224, 0.25)';
-        ctx.shadowBlur = 14;
-      } else {
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = baseColor + '55';
-      }
+      // Base planet color
+      const baseColor = isMyPlanet ? '#e8e8e0' : isOwned ? '#c47070' : '#6e6e80';
 
-      // Fill
-      const grad = ctx.createRadialGradient(x - r * 0.25, y - r * 0.3, 0, x, y, r);
+      ctx.save();
+
+      // ── 1. Outer shield ring ─────────────────────────────────────────
+      ctx.globalAlpha = shield.opacity;
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = shield.lineWidth;
+      ctx.shadowColor = baseColor;
+      ctx.shadowBlur = shield.blur;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(x, y, shieldR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // ── 2. Inner planet (production core) ────────────────────────────
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = isSelected ? 28 : isMyPlanet ? 10 : 4;
+      ctx.shadowColor = isSelected ? 'rgba(255,255,255,0.6)' : baseColor + '88';
+
+      const grad = ctx.createRadialGradient(
+        x - prodR * 0.25, y - prodR * 0.3, 0, x, y, prodR
+      );
       grad.addColorStop(0, baseColor);
-      grad.addColorStop(0.65, baseColor + 'bb');
-      grad.addColorStop(1, baseColor + '44');
+      grad.addColorStop(0.65, baseColor + 'cc');
+      grad.addColorStop(1, baseColor + '55');
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x, y, prodR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Selection ring (origin = solid, target = dashed)
+      // ── 3. Selection ring (outside the shield) ────────────────────────
       if (isSelected) {
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        if (isOrigin) {
-          ctx.setLineDash([]);
-        } else {
-          ctx.setLineDash([5, 5]);
-        }
+        ctx.setLineDash(isOrigin ? [] : [5, 5]);
         ctx.beginPath();
-        ctx.arc(x, y, r + 7, 0, Math.PI * 2);
+        ctx.arc(x, y, shieldR + 8, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
       }
 
-      // Ship count (center)
+      ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
+
+      // ── 4. Ship count label (center of inner circle) ──────────────────
       ctx.fillStyle = isMyPlanet ? '#06060e' : 'rgba(255,255,255,0.85)';
-      ctx.font = `bold ${r >= 28 ? 14 : 12}px "Space Mono", monospace`;
+      ctx.font = `bold ${prodR >= 18 ? 12 : 10}px "Space Mono", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(planet.ships), x, y);
 
-      // Index label above
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.font = '10px "Space Mono", monospace';
+      // ── 5. Planet index above shield ──────────────────────────────────
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '9px "Space Mono", monospace';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`${idx}`, x, y - r - 6);
+      ctx.fillText(`${idx}`, x, y - shieldR - 6);
 
       ctx.restore();
     }
@@ -279,7 +301,7 @@ export default function Canvas({
     const hit = planets.find((p) => {
       const { x, y } = toPixel(p);
       const isRevealed = revealedSet.has(p.id) || p.owner === player?.uid;
-      const hitR = isRevealed ? getR(p) + 10 : FOG_R + 12;
+      const hitR = isRevealed ? getHitR(p) : FOG_R + 12;
       return Math.hypot(mx - x, my - y) <= hitR;
     });
 
