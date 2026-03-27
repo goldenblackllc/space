@@ -72,12 +72,13 @@ export default function Canvas({
 
   // Outer shield: radius, lineWidth, opacity all scale with ships
   function getShield(ships: number) {
-    const t = Math.min(1, ships / 60); // saturates at 60 ships
+    const t = Math.min(1, ships / 60);
     return {
-      extraR: 6 + t * 18,         // 6px → 24px beyond inner edge
-      lineWidth: 0.5 + t * 3,    // 0.5px → 3.5px
-      opacity: 0.08 + t * 0.6,   // near-invisible → solid
-      blur: t * 18,               // 0 → 18px glow
+      extraR: 2 + t * 6,         // 2px → 8px beyond inner edge (tight)
+      lineWidth: 0.5 + t * 2.5,  // 0.5px → 3px
+      opacity: 0.08 + t * 0.65,  // near-invisible → solid
+      blur: t * 12,               // 0 → 12px glow
+      color: '#c8a458',           // warm amber — distinct from all planet colors
     };
   }
 
@@ -232,9 +233,9 @@ export default function Canvas({
 
       // ── 1. Outer shield ring ─────────────────────────────────────────
       ctx.globalAlpha = shield.opacity;
-      ctx.strokeStyle = baseColor;
+      ctx.strokeStyle = shield.color;
       ctx.lineWidth = shield.lineWidth;
-      ctx.shadowColor = baseColor;
+      ctx.shadowColor = shield.color;
       ctx.shadowBlur = shield.blur;
       ctx.setLineDash([]);
       ctx.beginPath();
