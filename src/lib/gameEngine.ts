@@ -59,8 +59,8 @@ export async function assignHomePlanet(
 
 // ─── Travel Time Calculation ──────────────────────────────────────────────────
 
-/** Speed: 1 unit of distance = 1 year of travel */
-const SPEED = 1;
+/** Speed: higher = faster travel. At 10, a cross-map trip takes ~9–14 years */
+const SPEED = 10;
 
 export function calcTravelTime(from: Planet, to: Planet): number {
   const dist = distance(from, to);

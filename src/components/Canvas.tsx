@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { Planet, Fleet, Player } from '@/lib/types';
 
 interface CanvasProps {
@@ -11,8 +11,10 @@ interface CanvasProps {
   onPlanetClick?: (planet: Planet) => void;
 }
 
-const PLANET_BASE_RADIUS = 14;
-const MAX_EXTRA_RADIUS = 12;
+// ── Much larger sizes ──
+const PLANET_MIN_RADIUS = 22;
+const PLANET_MAX_RADIUS = 40;
+const FOG_RADIUS = 18;
 
 export default function Canvas({
   planets,
@@ -34,6 +36,14 @@ export default function Canvas({
     [dims]
   );
 
+  // Stable planet index
+  const sortedIds = useMemo(
+    () => [...planets].sort((a, b) => a.id.localeCompare(b.id)).map((p) => p.id),
+    [planets]
+  );
+  const planetIndex = (id: string) => sortedIds.indexOf(id) + 1;
+
+  // Resize observer
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -47,111 +57,132 @@ export default function Canvas({
     return () => ro.disconnect();
   }, []);
 
+  function getRadius(planet: Planet) {
+    const t = Math.min(1, planet.ships / 60);
+    return PLANET_MIN_RADIUS + t * (PLANET_MAX_RADIUS - PLANET_MIN_RADIUS);
+  }
+
+  // ── Draw ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || dims.w === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = dims.w;
-    canvas.height = dims.h;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = dims.w * dpr;
+    canvas.height = dims.h * dpr;
+    ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, dims.w, dims.h);
 
     const revealedSet = new Set(player?.revealedPlanets ?? []);
 
-    // Assign stable index to each planet for labelling
-    const sortedIds = [...planets].sort((a, b) => a.id.localeCompare(b.id)).map(p => p.id);
-    const planetIndex = (id: string) => sortedIds.indexOf(id) + 1;
-
-    // ── Fleet travel lines ────────────────────────────────────────────────
+    // ── Fleet travel lines ──────────────────────────────────────────────
     for (const fleet of fleets) {
-      const fromPlanet = planets.find((p) => p.id === fleet.fromPlanetId);
-      const toPlanet = planets.find((p) => p.id === fleet.toPlanetId);
-      if (!fromPlanet || !toPlanet) continue;
+      const fp = planets.find((p) => p.id === fleet.fromPlanetId);
+      const tp = planets.find((p) => p.id === fleet.toPlanetId);
+      if (!fp || !tp) continue;
 
-      const from = toPixel(fromPlanet);
-      const to = toPixel(toPlanet);
+      const from = toPixel(fp);
+      const to = toPixel(tp);
       const totalYears = fleet.arriveYear - fleet.departYear;
       const progress = Math.min(1, (currentYear - fleet.departYear) / totalYears);
-      const fleetX = from.x + (to.x - from.x) * progress;
-      const fleetY = from.y + (to.y - from.y) * progress;
+      const fx = from.x + (to.x - from.x) * progress;
+      const fy = from.y + (to.y - from.y) * progress;
 
+      // Dashed line
       ctx.save();
-      ctx.setLineDash([4, 8]);
-      ctx.strokeStyle = 'rgba(123, 123, 255, 0.3)';
-      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 10]);
+      ctx.strokeStyle = 'rgba(123, 123, 255, 0.35)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
 
+      // Fleet pip
+      ctx.setLineDash([]);
       ctx.fillStyle = '#7b7bff';
       ctx.shadowColor = '#7b7bff';
-      ctx.shadowBlur = 12;
-      ctx.setLineDash([]);
+      ctx.shadowBlur = 14;
       ctx.beginPath();
-      ctx.arc(fleetX, fleetY, 3.5, 0, Math.PI * 2);
+      ctx.arc(fx, fy, 5, 0, Math.PI * 2);
       ctx.fill();
+
+      // Ship count on fleet
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(String(fleet.ships), fx, fy - 8);
       ctx.restore();
     }
 
-    // ── Planets ───────────────────────────────────────────────────────────
+    // ── Planets ──────────────────────────────────────────────────────────
     for (const planet of planets) {
       const { x, y } = toPixel(planet);
       const isRevealed = revealedSet.has(planet.id) || planet.owner === player?.uid;
       const isHome = planet.isHome && planet.owner === player?.uid;
       const isSelected = selected?.id === planet.id;
-      const isOwned = !!planet.owner;
       const isMyPlanet = planet.owner === player?.uid;
+      const isOwned = !!planet.owner;
       const idx = planetIndex(planet.id);
 
       ctx.save();
 
       if (!isRevealed) {
-        // ── Fog of War: clearly visible but mysterious ──────────────────
-        const fogRadius = 14;
-        const fogColor = isSelected ? 'rgba(200, 200, 255, 0.6)' : 'rgba(140, 140, 180, 0.5)';
+        // ── FOG OF WAR ──────────────────────────────────────────────────
+        const r = FOG_RADIUS;
 
-        // Subtle outer ring
-        ctx.strokeStyle = 'rgba(160, 160, 220, 0.35)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 5]);
+        // Outer dashed ring
+        ctx.strokeStyle = 'rgba(180, 180, 230, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
         ctx.beginPath();
-        ctx.arc(x, y, fogRadius + 8, 0, Math.PI * 2);
+        ctx.arc(x, y, r + 10, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Filled circle
+        // Filled body
         ctx.setLineDash([]);
-        ctx.fillStyle = fogColor;
-        ctx.shadowColor = 'rgba(160,160,255,0.4)';
-        ctx.shadowBlur = isSelected ? 16 : 6;
+        const fogGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        fogGrad.addColorStop(0, isSelected ? 'rgba(180,180,255,0.65)' : 'rgba(150,150,200,0.50)');
+        fogGrad.addColorStop(1, isSelected ? 'rgba(120,120,200,0.35)' : 'rgba(100,100,160,0.20)');
+        ctx.fillStyle = fogGrad;
+        ctx.shadowColor = 'rgba(160,160,255,0.5)';
+        ctx.shadowBlur = isSelected ? 20 : 8;
         ctx.beginPath();
-        ctx.arc(x, y, fogRadius, 0, Math.PI * 2);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
 
         // Selection ring
         if (isSelected) {
-          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-          ctx.lineWidth = 1.5;
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
           ctx.beginPath();
-          ctx.arc(x, y, fogRadius + 8, 0, Math.PI * 2);
+          ctx.arc(x, y, r + 14, 0, Math.PI * 2);
           ctx.stroke();
         }
 
-        // Planet number
+        // Planet index + "?" indicator
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.font = 'bold 11px "Space Mono", monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = 'bold 13px "Space Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${idx}`, x, y);
+        ctx.fillText(`#${idx}`, x, y - 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = '10px "Space Mono", monospace';
+        ctx.fillText('?', x, y + 10);
 
         ctx.restore();
         continue;
       }
 
-      // ── Revealed planet ───────────────────────────────────────────────
-      const radius = PLANET_BASE_RADIUS + Math.min(MAX_EXTRA_RADIUS, (planet.ships / 40) * MAX_EXTRA_RADIUS);
+      // ── REVEALED PLANET ───────────────────────────────────────────────
+      const radius = getRadius(planet);
 
       const planetColor = isHome
         ? '#44ffaa'
@@ -161,13 +192,18 @@ export default function Canvas({
         ? '#ff5577'
         : '#8888bb';
 
+      // Glow
       ctx.shadowColor = planetColor;
-      ctx.shadowBlur = isSelected ? 28 : 16;
+      ctx.shadowBlur = isSelected ? 32 : 20;
 
-      const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, 0, x, y, radius);
+      // Fill gradient
+      const grad = ctx.createRadialGradient(
+        x - radius * 0.25, y - radius * 0.25, 0,
+        x, y, radius
+      );
       grad.addColorStop(0, planetColor);
-      grad.addColorStop(1, planetColor + '55');
-
+      grad.addColorStop(0.7, planetColor + 'aa');
+      grad.addColorStop(1, planetColor + '33');
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -177,36 +213,41 @@ export default function Canvas({
       if (isSelected) {
         ctx.shadowBlur = 0;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
         ctx.beginPath();
-        ctx.arc(x, y, radius + 7, 0, Math.PI * 2);
+        ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
 
-      // Ship count
+      // ── Ship count (large, centered) ──────────────────────────────────
       ctx.shadowBlur = 0;
-      ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.font = `bold ${radius > 12 ? 11 : 9}px "Space Mono", monospace`;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${radius >= 30 ? 16 : 14}px "Space Mono", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(planet.ships), x, y);
 
-      // Planet number label (above)
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.font = '10px "Space Mono", monospace';
-      ctx.fillText(`#${idx}`, x, y - radius - 9);
+      // ── Planet index label (above planet) ─────────────────────────────
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.font = '11px "Space Mono", monospace';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`#${idx}`, x, y - radius - 6);
+
+      // ── "HOME" badge or ownership indicator (below planet) ────────────
+      if (isHome) {
+        ctx.fillStyle = 'rgba(68,255,170,0.7)';
+        ctx.font = 'bold 9px "Space Mono", monospace';
+        ctx.textBaseline = 'top';
+        ctx.fillText('HOME', x, y + radius + 5);
+      }
 
       ctx.restore();
     }
-  }, [planets, fleets, player, selected, dims, toPixel, currentYear]);
+  }, [planets, fleets, player, selected, dims, toPixel, currentYear, sortedIds]);
 
-  function getPlanetRadius(p: Planet, isRevealed: boolean) {
-    if (!isRevealed) return 14 + 8; // fogRadius + hit margin
-    return PLANET_BASE_RADIUS + Math.min(MAX_EXTRA_RADIUS, (p.ships / 40) * MAX_EXTRA_RADIUS) + 8;
-  }
-
+  // ── Click handler ───────────────────────────────────────────────────────
   function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
     if (dims.w === 0) return;
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -217,7 +258,8 @@ export default function Canvas({
     const hitPlanet = planets.find((p) => {
       const { x, y } = toPixel(p);
       const isRevealed = revealedSet.has(p.id) || p.owner === player?.uid;
-      return Math.hypot(mx - x, my - y) <= getPlanetRadius(p, isRevealed);
+      const hitR = isRevealed ? getRadius(p) + 10 : FOG_RADIUS + 14;
+      return Math.hypot(mx - x, my - y) <= hitR;
     });
 
     if (!hitPlanet) {
@@ -247,7 +289,7 @@ export default function Canvas({
           backdropFilter: 'blur(12px)',
           border: '1px solid rgba(123,123,255,0.3)',
           borderRadius: 8,
-          padding: '10px 20px',
+          padding: '12px 24px',
           color: 'var(--text-secondary)',
           fontSize: 13,
           fontFamily: 'var(--font-mono)',
@@ -255,8 +297,8 @@ export default function Canvas({
           whiteSpace: 'nowrap',
         }}>
           {selected.owner === player?.uid
-            ? <><span style={{ color: '#7b7bff' }}>★ {selected.ships} ships</span> · Select in Fleet Orders to queue a launch</>
-            : <><span style={{ color: 'var(--text-primary)' }}>Target planet selected</span> · Add as destination in Fleet Orders</>
+            ? <><span style={{ color: '#7b7bff', fontWeight: 700 }}>Planet #{planetIndex(selected.id)} · {selected.ships} ships</span> — use Fleet Orders to deploy</>
+            : <><span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Target #{planetIndex(selected.id)}</span> — add as destination in Fleet Orders</>
           }
         </div>
       )}
