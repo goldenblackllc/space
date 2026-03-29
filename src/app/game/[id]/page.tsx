@@ -4,15 +4,22 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Canvas, { type FleetOrder } from '@/components/Canvas';
+import OnMapBattle from '@/components/OnMapBattle';
 import {
   subscribeGame,
   subscribePlanets,
   subscribeFleets,
   subscribePlayer,
+  subscribeBattles,
+  subscribeColonizations,
+  markBattleViewed,
+  markColonizationViewed,
 } from '@/lib/firestore';
-import { dispatchFleet, advanceTurn } from '@/lib/gameEngine';
-import type { Game, Planet, Fleet, Player } from '@/lib/types';
+import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import soundManager from '@/lib/soundManager';
+import AudioManager from '@/components/AudioManager';
 import styles from './game.module.css';
 
 const MODAL_W = 228;
@@ -20,16 +27,19 @@ const MODAL_H = 210;
 const MODAL_OFFSET = 20;
 
 // ── Arcade Event Types ────────────────────────────────────────────────────────
-type ArcadeType = 'colonize' | 'battle-won' | 'battle-lost';
+type ReportType = 'colonize' | 'battle-lost' | 'battle-offensive' | 'battle-defensive';
 
-interface ArcadeEvent {
-  id: string;
-  type: ArcadeType;
+interface ReportEvent {
+  id: string; // The Firestore doc ID
+  planetId: string; // the Firestore planet document ID (used for spotlight + positioning)
+  type: ReportType;
   px: number; // planet % x
   py: number; // planet % y
   ships: number;
   production: number;
   shipLoss?: number; // approximate damage for float numbers
+  battleRec?: BattleRecord;
+  colonizeRec?: ColonizationRecord;
 }
 
 interface FloatNum {
@@ -37,6 +47,58 @@ interface FloatNum {
   px: number;
   py: number;
   label: string;
+}
+
+// ── Starfield ─────────────────────────────────────────────────────────────────
+const STAR_COUNT = 200;
+const TWINKLE_VARIANTS = ['a', 'b', 'c'] as const;
+
+function seededRand(seed: number) {
+  // Simple LCG — deterministic so memoised stars are stable
+  let s = seed;
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+}
+
+interface StarData {
+  id: number; x: number; y: number; size: number;
+  variant: typeof TWINKLE_VARIANTS[number];
+  dur: string; delay: string;
+}
+
+function generateStars(): StarData[] {
+  const rand = seededRand(42);
+  return Array.from({ length: STAR_COUNT }, (_, i) => ({
+    id: i,
+    x: rand() * 100,
+    y: rand() * 100,
+    size: 0.8 + rand() * 1.6,           // 0.8 – 2.4 px
+    variant: TWINKLE_VARIANTS[Math.floor(rand() * 3)],
+    dur: `${(2.5 + rand() * 5).toFixed(2)}s`,    // 2.5 – 7.5s
+    delay: `-${(rand() * 6).toFixed(2)}s`,        // negative = already mid-cycle
+  }));
+}
+
+function Starfield() {
+  const stars = useMemo(generateStars, []);
+  return (
+    <div className={styles.starfield} aria-hidden>
+      {stars.map((s) => (
+        <div
+          key={s.id}
+          className={styles.star}
+          data-twinkle={s.variant}
+          style={{
+            left: `${s.x}%`,
+            top: `${s.y}%`,
+            width: s.size,
+            height: s.size,
+            '--dur': s.dur,
+            '--delay': s.delay,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
 }
 
 // ── Shard SVG helper ─────────────────────────────────────────────────────────
@@ -64,50 +126,7 @@ function ShardBurst({ color }: { color: string }) {
   );
 }
 
-// ── Arcade Banner component ───────────────────────────────────────────────────
-function ArcadeBanner({ ev, onDismiss }: { ev: ArcadeEvent; onDismiss: () => void }) {
-  const isCol = ev.type === 'colonize';
-  const isWon = ev.type === 'battle-won';
-  const bannerClass = isCol
-    ? styles.arcadeBannerColonize
-    : isWon
-    ? styles.arcadeBannerBattleWon
-    : styles.arcadeBannerBattleLost;
-
-  return (
-    <div className={`${styles.arcadeBanner} ${bannerClass}`}>
-      {isCol && (
-        <>
-          <span className={styles.arcadeBannerLine}>&gt; PLANET SECURED</span>
-          <span className={styles.arcadeBannerLine}>  NEW COLONY ESTABLISHED</span>
-          <span className={styles.arcadeBannerLine}>  {ev.ships} SHIPS STATIONED</span>
-          <span className={styles.arcadeBannerLine}>  PRODUCTION: +{ev.production}/YR</span>
-        </>
-      )}
-      {isWon && (
-        <>
-          <span className={styles.arcadeBannerLine}>&gt; PLANET CONQUERED</span>
-          <span className={styles.arcadeBannerLine}>  ENEMY DEFENSE SHATTERED</span>
-          <span className={styles.arcadeBannerLine}>  {ev.ships} SHIPS LANDED</span>
-          <span className={styles.arcadeBannerLine}>  PRODUCTION: +{ev.production}/YR</span>
-        </>
-      )}
-      {ev.type === 'battle-lost' && (
-        <>
-          <span className={styles.arcadeBannerLine}>&gt; INVASION REPELLED</span>
-          <span className={styles.arcadeBannerLine}>  PLANET LOST TO ENEMY</span>
-          {ev.shipLoss !== undefined && (
-            <span className={styles.arcadeBannerLine}>  -{ev.shipLoss} SHIPS LOST</span>
-          )}
-        </>
-      )}
-      <button className={styles.arcadeBannerDismiss} onClick={onDismiss}>
-        [ DISMISS ]
-      </button>
-    </div>
-  );
-}
-
+// Old ArcadeBanner logic removed, incorporated directly into Morning Report queue
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GamePage() {
   const { user, loading } = useAuth();
@@ -118,9 +137,44 @@ export default function GamePage() {
   const [game, setGame] = useState<Game | null>(null);
   const [planets, setPlanets] = useState<Planet[]>([]);
   const [fleets, setFleets] = useState<Fleet[]>([]);
+
+  // ── Map container ref (for on-map battle coordinate conversion) ───────────
+  const [boardDims, setBoardDims] = useState({ w: 0, h: 0, padTop: 48, padBot: 96 });
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  const mapContainerRef = useCallback((el: HTMLDivElement | null) => {
+    if (roRef.current) {
+      roRef.current.disconnect();
+      roRef.current = null;
+    }
+    if (!el) return;
+
+    const update = () => {
+      const cs = window.getComputedStyle(el);
+      setBoardDims({
+        w: el.clientWidth || window.innerWidth,
+        h: el.clientHeight || window.innerHeight,
+        padTop: parseFloat(cs.paddingTop) || 48,
+        padBot: parseFloat(cs.paddingBottom) || 96,
+      });
+    };
+
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    roRef.current = ro;
+    update(); // Initial synchronous measurement
+  }, []);
   const [player, setPlayer] = useState<Player | null>(null);
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
+
+  // ── Background Music ──────────────────────────────────────────────────────
+  const [musicOn, setMusicOn] = useState(false);
+
+  function toggleMusic() {
+    soundManager.unlock();
+    setMusicOn(!musicOn);
+  }
 
   // ── Tap-to-Target State ───────────────────────────────────────────────────
   const [origin, setOrigin] = useState<Planet | null>(null);
@@ -129,8 +183,132 @@ export default function GamePage() {
   const [modalShips, setModalShips] = useState(1);
   const [pendingOrders, setPendingOrders] = useState<FleetOrder[]>([]);
 
-  // ── Arcade Events ─────────────────────────────────────────────────────────
-  const [arcadeEvents, setArcadeEvents] = useState<ArcadeEvent[]>([]);
+  // ── Battle Replay ─────────────────────────────────────────────────────────
+  const [battles, setBattles] = useState<BattleRecord[]>([]);
+  const [activeBattle, setActiveBattle] = useState<BattleRecord | null>(null);
+
+  // ── Colonization Events ───────────────────────────────────────────────────
+  const [colonizations, setColonizations] = useState<ColonizationRecord[]>([]);
+
+  // Local optimistic dismissal state
+  const [localDismissed, setLocalDismissed] = useState<string[]>([]);
+
+  // ── Derived Local Planets ─────────────────────────────────────────────────
+  // Start from official Firestore planets (post-production, no battle results).
+  // Apply all events the player has already viewed to reconstruct the
+  // player's current map state. Refresh-safe because viewedBy is in Firestore.
+  const localPlanets = useMemo(() => {
+    if (!user) return planets;
+    const pMap = new Map(planets.map((p) => [p.id, { ...p }]));
+
+    // Apply colonizations — viewed ones for any player, PLUS unviewed ones
+    // belonging to this user (so the planet is visible while the modal shows).
+    for (const col of colonizations) {
+      const viewed = (col.viewedBy ?? []).includes(user.uid);
+      const isMyColony = col.fleetOwnerUid === user.uid;
+      if (viewed || isMyColony) {
+        const p = pMap.get(col.planetId);
+        if (p) {
+          p.owner = col.fleetOwnerUid;
+          p.ships = col.ships;
+        }
+      }
+    }
+
+    // Apply viewed battles
+    for (const b of battles) {
+      if ((b.viewedBy ?? []).includes(user.uid)) {
+        const p = pMap.get(b.planetId);
+        if (p) {
+          if (b.attackerWon) {
+            p.owner = b.attackerUid;
+            p.ships = b.survivingAttackerShips;
+          } else {
+            p.ships = b.survivingDefenderShips;
+          }
+        }
+      }
+    }
+
+    return Array.from(pMap.values());
+  }, [planets, battles, colonizations, user]);
+
+  // ── All unviewed events (colonizations + battles + defensive losses) ──────
+  const allUnviewedColonizations = useMemo(() => {
+    if (!user) return [];
+    return colonizations.filter(
+      (c) => c.fleetOwnerUid === user.uid && !(c.viewedBy ?? []).includes(user.uid)
+    );
+  }, [colonizations, user]);
+
+  // Build report event queue from unviewed colonizations
+  const colonizeReportEvents: ReportEvent[] = useMemo(() => {
+    return allUnviewedColonizations.map((c) => {
+      const p = planets.find((pl) => pl.id === c.planetId);
+      return {
+        id: c.id,
+        planetId: c.planetId,
+        type: 'colonize' as ReportType,
+        px: p?.x ?? 50,
+        py: p?.y ?? 50,
+        ships: c.ships,
+        production: p?.productionBase ?? 0,
+        colonizeRec: c,
+      };
+    });
+  }, [allUnviewedColonizations, planets]);
+
+  // Build report event queue from unviewed defensive battles
+  const defensiveBattleReportEvents: ReportEvent[] = useMemo(() => {
+    if (!user) return [];
+    return battles
+      .filter(
+        (b) =>
+          b.defenderUid === user.uid &&
+          !(b.viewedBy ?? []).includes(user.uid)
+      )
+      .map((b) => {
+        const p = planets.find((pl) => pl.id === b.planetId);
+        return {
+          id: b.id + '-defensive',
+          planetId: b.planetId,
+          type: 'battle-defensive' as ReportType,
+          px: p?.x ?? 50,
+          py: p?.y ?? 50,
+          ships: b.survivingAttackerShips ?? 0,
+          production: p?.productionBase ?? 0,
+          shipLoss: b.defenderShips ?? 0,
+          battleRec: b,
+        };
+      });
+  }, [battles, planets, user]);
+
+  // Build report event queue from offensive battles the user hasn't seen
+  const offensiveBattleReportEvents: ReportEvent[] = useMemo(() => {
+    if (!user) return [];
+    return battles
+      .filter(
+        (b) =>
+          b.attackerUid === user.uid &&
+          !(b.viewedBy ?? []).includes(user.uid)
+      )
+      .map((b) => {
+        const p = planets.find((pl) => pl.id === b.planetId);
+        return {
+          id: b.id + '-offensive',
+          planetId: b.planetId,
+          type: 'battle-offensive' as ReportType,
+          px: p?.x ?? 50,
+          py: p?.y ?? 50,
+          ships: 0,
+          production: 0,
+          battleRec: b,
+        };
+      });
+  }, [battles, planets, user]);
+
+
+  // ── VFX State ──────────────────────────────────────────────────────────────
   const [flashEvents, setFlashEvents] = useState<{ id: string; px: number; py: number; color: string }[]>([]);
   const [floatNums, setFloatNums] = useState<FloatNum[]>([]);
   const [shardEvents, setShardEvents] = useState<{ id: string; px: number; py: number; color: string }[]>([]);
@@ -142,13 +320,30 @@ export default function GamePage() {
     setTimeout(() => setErrorToast(''), 3500);
   }
 
+  // Keep a live ref to planets for coordinate lookups
+  const planetsRef = useRef<Planet[]>([]);
+  useEffect(() => { planetsRef.current = planets; }, [planets]);
+
   function triggerShake() {
     setShake(true);
     setTimeout(() => setShake(false), 400);
   }
 
-  function dismissArcade(id: string) {
-    setArcadeEvents((prev) => prev.filter((e) => e.id !== id));
+  // Dismiss an arcade event: mark the underlying Firestore record as viewed
+  function dismissArcade(evId: string) {
+    if (!user || !game) return;
+    // Check if this is a colonization event
+    const colRec = colonizations.find((c) => c.id === evId);
+    if (colRec) {
+      markColonizationViewed(gameId, colRec.id, user.uid, game.players);
+      return;
+    }
+    // Check if this is a battle-lost event (id ends with '-lost')
+    const battleId = evId.replace(/-lost$/, '');
+    const battleRec = battles.find((b) => b.id === battleId);
+    if (battleRec) {
+      markBattleViewed(gameId, battleRec.id, user.uid, [battleRec.attackerUid, battleRec.defenderUid]);
+    }
   }
 
   function spawnFlash(px: number, py: number, color: string) {
@@ -165,11 +360,15 @@ export default function GamePage() {
 
   function spawnFloatNum(px: number, py: number, label: string) {
     const id = crypto.randomUUID();
-    // Slight horizontal jitter
     const jitter = (Math.random() - 0.5) * 4;
     setFloatNums((prev) => [...prev, { id, px: px + jitter, py, label }]);
     setTimeout(() => setFloatNums((prev) => prev.filter((f) => f.id !== id)), 2000);
   }
+
+  // ── Sound: unlock AudioContext on first user gesture ────────────────────
+  useEffect(() => {
+    soundManager.initAutoUnlock();
+  }, []);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -184,74 +383,32 @@ export default function GamePage() {
       subscribePlanets(gameId, setPlanets),
       subscribeFleets(gameId, setFleets),
       subscribePlayer(gameId, user.uid, setPlayer),
+      subscribeBattles(gameId, (allBattles) => {
+        if (!user) return;
+        // Keep all battles involving this player (viewed or not)
+        // — viewedBy filtering is done in localPlanets derivation
+        const mine = allBattles.filter(
+          (b) => b.attackerUid === user.uid || b.defenderUid === user.uid
+        );
+        setBattles(mine);
+      }),
+      subscribeColonizations(gameId, setColonizations),
     ];
     return () => unsubs.forEach((u) => u());
   }, [gameId, user]);
 
-  // ── Colonization & Battle detection ──────────────────────────────────────
-  const prevPlanetsRef = useRef<Planet[]>([]);
-  useEffect(() => {
-    if (!user || prevPlanetsRef.current.length === 0) {
-      prevPlanetsRef.current = planets;
-      return;
-    }
-    const prevMap = new Map(prevPlanetsRef.current.map((p) => [p.id, { owner: p.owner, ships: p.ships }]));
-    const newArcade: ArcadeEvent[] = [];
+  // Combine all unviewed events into the morning report queue.
+  // Sort order: Colonizations -> Defensive Losses -> Offensive Battles (most exciting last)
+  const morningReportEvents = useMemo(() => {
+    const result = [
+      ...colonizeReportEvents,
+      ...defensiveBattleReportEvents,
+      ...offensiveBattleReportEvents,
+    ].filter((ev) => !localDismissed.includes(ev.id));
+    return result;
+  }, [colonizeReportEvents, defensiveBattleReportEvents, offensiveBattleReportEvents, localDismissed]);
 
-    for (const planet of planets) {
-      const prev = prevMap.get(planet.id);
-      if (!prev) continue;
 
-      // Colonization: was neutral, now mine
-      if (prev.owner === null && planet.owner === user.uid) {
-        const ev: ArcadeEvent = {
-          id: planet.id + '-col-' + Date.now(),
-          type: 'colonize',
-          px: planet.x, py: planet.y,
-          ships: planet.ships,
-          production: planet.productionBase ?? 0,
-        };
-        newArcade.push(ev);
-        spawnFlash(planet.x, planet.y, '#00ff88');
-      }
-
-      // Battle won: was enemy's, now mine
-      if (prev.owner !== null && prev.owner !== user.uid && planet.owner === user.uid) {
-        const ev: ArcadeEvent = {
-          id: planet.id + '-won-' + Date.now(),
-          type: 'battle-won',
-          px: planet.x, py: planet.y,
-          ships: planet.ships,
-          production: planet.productionBase ?? 0,
-        };
-        newArcade.push(ev);
-        spawnFlash(planet.x, planet.y, '#ff6600');
-        setTimeout(() => spawnShard(planet.x, planet.y, '#ff9944'), 150);
-        spawnFloatNum(planet.x, planet.y, `CONQUERED`);
-        triggerShake();
-      }
-
-      // Battle lost: was mine, now someone else's
-      if (prev.owner === user.uid && planet.owner !== user.uid) {
-        const shipLoss = Math.max(0, prev.ships - planet.ships);
-        const ev: ArcadeEvent = {
-          id: planet.id + '-lost-' + Date.now(),
-          type: 'battle-lost',
-          px: planet.x, py: planet.y,
-          ships: planet.ships,
-          production: planet.productionBase ?? 0,
-          shipLoss,
-        };
-        newArcade.push(ev);
-        spawnFlash(planet.x, planet.y, '#aa44ff');
-        if (shipLoss > 0) spawnFloatNum(planet.x, planet.y, `-${shipLoss}`);
-        triggerShake();
-      }
-    }
-
-    if (newArcade.length > 0) setArcadeEvents((prev) => [...prev, ...newArcade]);
-    prevPlanetsRef.current = planets;
-  }, [planets, user]);
 
   // ── Selection helpers ─────────────────────────────────────────────────────
   function clearSelection() {
@@ -261,11 +418,33 @@ export default function GamePage() {
   }
 
   function handlePlanetClick(planet: Planet, px: number, py: number) {
+    if (iHaveEnded) {
+      showToast('Waiting for other players to finish their turn.');
+      return;
+    }
+    if (morningReportEvents.length > 0) {
+      showToast('Dismiss pending events first.');
+      return;
+    }
+    const hasUnresolvedBattles = battles.some((b) => 
+      (b.attackerUid === user?.uid || b.defenderUid === user?.uid) &&
+      !(b.viewedBy ?? []).includes(user?.uid ?? '')
+    );
+    if (hasUnresolvedBattles) {
+      showToast('Resolve pending battles first.');
+      return;
+    }
+
+    soundManager.playBlip();
     if (origin?.id === planet.id) { clearSelection(); return; }
     if (origin && planet.id !== origin.id) {
       setTarget(planet);
       const originPlanet = planets.find((p) => p.id === origin.id);
-      setModalShips(Math.max(1, Math.floor((originPlanet?.ships ?? 2) / 2)));
+      const alreadyQueuedForOrigin = pendingOrders
+        .filter((o) => o.fromPlanetId === origin.id)
+        .reduce((sum, o) => sum + o.ships, 0);
+      const availableForOrigin = (originPlanet?.ships ?? 2) - alreadyQueuedForOrigin;
+      setModalShips(Math.max(1, Math.floor(availableForOrigin / 2)));
       const viewW = window.innerWidth, viewH = window.innerHeight;
       let mx = px + MODAL_OFFSET, my = py - MODAL_H / 2;
       if (mx + MODAL_W > viewW - 16) mx = px - MODAL_W - MODAL_OFFSET;
@@ -283,7 +462,12 @@ export default function GamePage() {
   function confirmOrder() {
     if (!origin || !target || modalShips < 1) return;
     const originPlanet = planets.find((p) => p.id === origin.id);
-    if (!originPlanet || modalShips >= originPlanet.ships) {
+    if (!originPlanet) return;
+    const alreadyQueued = pendingOrders
+      .filter((o) => o.fromPlanetId === origin.id)
+      .reduce((sum, o) => sum + o.ships, 0);
+    const availableShips = originPlanet.ships - alreadyQueued;
+    if (modalShips >= availableShips) {
       showToast('Must keep at least 1 ship at the source planet.');
       return;
     }
@@ -300,22 +484,40 @@ export default function GamePage() {
     if (!game || busy) return;
     setBusy(true);
     for (const order of pendingOrders) {
-      const from = planets.find((p) => p.id === order.fromPlanetId);
-      const to = planets.find((p) => p.id === order.toPlanetId);
+      const from = localPlanets.find((p) => p.id === order.fromPlanetId);
+      const to = localPlanets.find((p) => p.id === order.toPlanetId);
       if (!from || !to || from.ships <= 1) continue;
       await dispatchFleet(gameId, user!.uid, from, to, Math.min(order.ships, from.ships - 1), game.currentYear);
     }
     setPendingOrders([]);
-    await advanceTurn(gameId, game.currentYear);
+    clearSelection();
+    await endPlayerTurn(gameId, user!.uid);
     setBusy(false);
   }
 
   // ── Derived stats ─────────────────────────────────────────────────────────
-  const myPlanets = useMemo(() => planets.filter((p) => p.owner === user?.uid), [planets, user]);
+  const myPlanets = useMemo(() => localPlanets.filter((p) => p.owner === user?.uid), [localPlanets, user]);
   const totalShips = useMemo(() => myPlanets.reduce((s, p) => s + p.ships, 0), [myPlanets]);
   const inTransit = useMemo(() => fleets.filter((f) => f.owner === user?.uid).length, [fleets, user]);
-  const originPlanet = planets.find((p) => p.id === origin?.id);
-  const maxShips = originPlanet ? originPlanet.ships - 1 : 1;
+  const originPlanet = localPlanets.find((p) => p.id === origin?.id);
+  const alreadyQueuedFromOrigin = pendingOrders
+    .filter((o) => o.fromPlanetId === origin?.id)
+    .reduce((sum, o) => sum + o.ships, 0);
+  const maxShips = originPlanet ? originPlanet.ships - alreadyQueuedFromOrigin - 1 : 1;
+
+  // Player display labels: current player = "You", others = "Player N" (1-indexed by join order)
+  const playerLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    (game?.players ?? []).forEach((uid, idx) => {
+      labels[uid] = uid === user?.uid ? 'You' : `Player ${idx + 1}`;
+    });
+    return labels;
+  }, [game?.players, user?.uid]);
+
+  // Turn readiness
+  const iHaveEnded = !!(game?.turnEnded?.[user?.uid ?? '']);
+
+  // The unviewed battles are now handled directly inside morningReportEvents.
 
   if (!game) return (
     <div className={styles.loading}><div className={styles.spinner} /><span>Loading</span></div>
@@ -329,20 +531,71 @@ export default function GamePage() {
 
   // Active arcade banner to show (one at a time, stacked in center)
   // We show all banners, each dismissed independently
-  const hasBanner = arcadeEvents.length > 0;
+
+  // ── Unified Spotlight ─────────────────────────────────────────────────
+  // Priorities: The queue determines the order.
+  const SPOTLIGHT_COLORS: Record<ReportType, string> = {
+    'colonize': '#00ff88',
+    'battle-lost': '#aa44ff',
+    'battle-offensive': '#ffffff', // Battles naturally use white spotlights
+    'battle-defensive': '#ffffff',
+  };
+  const frontEvent = morningReportEvents[0] ?? null;
+  const spotlightPlanetId = frontEvent?.planetId;
+  const spotlightColor = frontEvent ? SPOTLIGHT_COLORS[frontEvent.type] : undefined;
+
+
+
+  /**
+   * Convert an event's planet percent coords to page-space pixel coords.
+   */
+  function evToPx(ev: ReportEvent): { x: number; y: number } | null {
+    if (boardDims.w === 0) return null;
+    const canvasH = boardDims.h - boardDims.padTop - boardDims.padBot;
+    return {
+      x: (ev.px / 100) * boardDims.w,
+      y: boardDims.padTop + (ev.py / 100) * canvasH,
+    };
+  }
 
   return (
     <div className={`${styles.layout} ${shake ? styles.shake : ''}`}>
+      {/* ── Background Stars ── */}
+      <Starfield />
+
       {/* ── Galaxy Map ── */}
-      <main className={styles.board}>
+      <main ref={mapContainerRef} className={styles.board}>
         <Canvas
-          planets={planets}
+          planets={localPlanets}
           player={player}
+          playerTotalShips={totalShips}
           origin={origin}
           target={target}
           pendingOrders={pendingOrders}
+          spotlightPlanetId={spotlightPlanetId}
+          spotlightColor={spotlightColor}
           onPlanetClick={handlePlanetClick}
+          onOrderCancel={(id) => setPendingOrders((prev) => prev.filter((o) => o.id !== id))}
         />
+
+
+        {/* The active, screen-takeover battle is now rendered below as part of the Morning Report queue */}
+
+        {/* ── Spotlight Pulse Ring — for the current morning report event ── */}
+        {(() => {
+          const ev = morningReportEvents[0];
+          if (!ev) return null;
+          const pt = evToPx(ev);
+          if (!pt) return null;
+          const ringColor = SPOTLIGHT_COLORS[ev.type] ?? '#ffffff';
+          return (
+            <div
+              key={`ring-${ev.id}`}
+              className={styles.spotlightPulseRing}
+              style={{ left: pt.x, top: pt.y, '--ring-color': ringColor } as React.CSSProperties}
+            />
+          );
+        })()}
       </main>
 
       {/* ── Action Layer ── */}
@@ -383,44 +636,218 @@ export default function GamePage() {
         ))}
       </div>
 
-      {/* ── Arcade Banners (stacked below HUD) ── */}
-      <AnimatePresence>
-        {arcadeEvents.map((ev, i) => (
-          <motion.div
-            key={ev.id}
-            style={{ position: 'absolute', left: '50%', top: 56 + i * 8, zIndex: 20, pointerEvents: 'auto' }}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ArcadeBanner ev={ev} onDismiss={() => dismissArcade(ev.id)} />
-          </motion.div>
-        ))}
+      {/* ── Arcade Banner / Morning Report Queue ── */}
+      <AnimatePresence mode="wait">
+        {(() => {
+          const ev = morningReportEvents[0];
+          if (!ev) return null;
+
+          // Look up the live planet using the explicit planetId field on the event
+          const livePlanet = planets.find((p) => p.id === ev.planetId);
+
+          let px = livePlanet?.x ?? ev.px;
+          let py = livePlanet?.y ?? ev.py;
+
+          let pt: { x: number; y: number } | null = null;
+          if (!isNaN(px) && !isNaN(py) && boardDims.w > 0) {
+            const canvasH = boardDims.h - boardDims.padTop - boardDims.padBot;
+            pt = {
+              x: (px / 100) * boardDims.w,
+              y: boardDims.padTop + (py / 100) * canvasH,
+            };
+          }
+
+          if ((ev.type === 'battle-offensive' || ev.type === 'battle-defensive') && ev.battleRec && user) {
+            return (
+              <motion.div
+                key={`wrapper-${ev.id}`}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 25,
+                  pointerEvents: 'none',
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <OnMapBattle
+                  battle={ev.battleRec}
+                  myUid={user.uid}
+                  playerLabels={playerLabels}
+                  planets={planets}
+                  pt={pt}
+                  boardDims={boardDims}
+                  onDismiss={() => {
+                    soundManager.playBlip();
+                    setLocalDismissed((prev) => [...prev, ev.id]);
+                    markBattleViewed(
+                      gameId,
+                      ev.battleRec!.id,
+                      user.uid,
+                      [ev.battleRec!.attackerUid, ev.battleRec!.defenderUid]
+                    ).catch(err => showToast(`Error: ${err.message}`));
+                  }}
+                />
+              </motion.div>
+            );
+          }
+
+          // For colonize and battle-lost:
+          const BANNER_W = 260;
+          const BANNER_H = 164; // Set to actual accurate modal dom height
+          const GAP      = 48; // Standoff distance to clear labels and planet visual
+          const HUD_H    = boardDims.padTop + 4;
+          const evColor  = SPOTLIGHT_COLORS[ev.type] ?? '#ffffff';
+
+          let motionLeft: number | string;
+          let motionTop: number;
+          let tetherDir: 'down' | 'up' | null = null;
+          let tetherOffset: number | string = '50%';
+
+          if (pt && boardDims.w > 0 && !isNaN(pt.x) && !isNaN(pt.y)) {
+            motionLeft = Math.max(8, Math.min(boardDims.w - BANNER_W - 8, pt.x - BANNER_W / 2));
+            tetherOffset = Math.max(16, Math.min(BANNER_W - 16, pt.x - (typeof motionLeft === 'number' ? motionLeft : 0)));
+            const topIfAbove = pt.y - BANNER_H - GAP;
+            if (topIfAbove >= HUD_H) {
+              motionTop = topIfAbove;
+              tetherDir = 'down';
+            } else {
+              motionTop = pt.y + GAP;
+              tetherDir = 'up';
+            }
+          } else {
+            motionLeft = '50%';
+            motionTop  = 56;
+          }
+
+          return (
+            <motion.div
+              key={`wrapper-${ev.id}`}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 19,
+                pointerEvents: 'none',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <motion.div
+                style={{
+                  position: 'absolute',
+                  left: motionLeft,
+                  top: motionTop,
+                  transform: pt ? 'none' : 'translateX(-50%)',
+                  zIndex: 20,
+                  pointerEvents: 'auto',
+                }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {tetherDir === 'down' && <div className={styles.tetherDown} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
+                {tetherDir === 'up'   && <div className={styles.tetherUp} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
+                
+              <div className={`${styles.arcadeBanner} ${ev.type === 'colonize' ? styles.arcadeBannerColonize : styles.arcadeBannerBattleLost}`}>
+                {ev.type === 'colonize' ? (
+                  <>
+                    <span className={styles.arcadeBannerLine}>&gt; PLANET SECURED</span>
+                    <span className={styles.arcadeBannerLine}>  NEW COLONY ESTABLISHED</span>
+                    <span className={styles.arcadeBannerLine}>  {ev.ships} SHIPS STATIONED</span>
+                    <span className={styles.arcadeBannerLine}>  PRODUCTION: +{ev.production}/YR</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.arcadeBannerLine}>&gt; PLANET LOST TO ENEMY</span>
+                    <span className={styles.arcadeBannerLine}>  DEFENSES OVERWHELMED</span>
+                    <span className={styles.arcadeBannerLine}>  -{ev.shipLoss ?? 0} SHIPS LOST</span>
+                    <span className={styles.arcadeBannerLine}>  {ev.ships ?? 0} ENEMY SHIPS SECURED</span>
+                  </>
+                )}
+                
+                <button
+                  className={styles.arcadeBannerDismiss}
+                  onClick={() => {
+                    soundManager.playBlip();
+                    // Optimistically hide the banner instantly
+                    setLocalDismissed((prev) => [...prev, ev.id]);
+                    
+                    // Mark underlying document as viewed to clear it from the queue
+                    if (ev.type === 'colonize' && ev.colonizeRec) {
+                      markColonizationViewed(gameId, ev.colonizeRec.id, user?.uid ?? '', game.players)
+                        .catch(err => showToast(`Error: ${err.message}`));
+                    } else if (ev.type === 'battle-lost' && ev.battleRec) {
+                      markBattleViewed(
+                        gameId,
+                        ev.battleRec.id,
+                        user?.uid ?? '',
+                        [ev.battleRec.attackerUid, ev.battleRec.defenderUid]
+                      ).catch(err => showToast(`Error: ${err.message}`));
+                    }
+                  }}
+                >
+                  [ DISMISS ]
+                </button>
+              </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
+
+      {/* ── Audio Manager ── */}
+      <AudioManager
+        gameState="map"
+        activeBattle={!!frontEvent && frontEvent.type.startsWith('battle')}
+        colonizedEventId={frontEvent?.type === 'colonize' ? frontEvent.id : null}
+        musicOn={musicOn}
+      />
 
       {/* ── Top HUD ── */}
       <header className={styles.topHud}>
-        <span className={styles.hudLogo}>SPACE</span>
-        <div className={styles.hudStats}>
-          <div className={styles.hudStat}>
-            <span className={styles.hudStatLabel}>Year</span>
-            <span className={styles.hudStatValue}>{game.currentYear}</span>
-          </div>
-          <div className={styles.hudStat}>
-            <span className={styles.hudStatLabel}>Planets</span>
-            <span className={styles.hudStatValue}>{myPlanets.length}</span>
-          </div>
-          <div className={styles.hudStat}>
-            <span className={styles.hudStatLabel}>Ships</span>
-            <span className={styles.hudStatValue}>{totalShips}</span>
-          </div>
-          <div className={styles.hudStat}>
-            <span className={styles.hudStatLabel}>In Transit</span>
-            <span className={styles.hudStatValue}>{inTransit}</span>
-          </div>
+        {/* Row 1: logo (left) + music toggle (right) */}
+        <div className={styles.hudRow1}>
+          <span className={styles.hudLogo}>SPACE</span>
+          <button
+            id="music-toggle-btn"
+            className={`${styles.musicToggle} ${musicOn ? styles.musicToggleOn : ''}`}
+            onClick={toggleMusic}
+            aria-label={musicOn ? 'Pause background music' : 'Play background music'}
+          >
+            [ MUSIC: {musicOn ? 'ON' : 'OFF'} ]
+          </button>
         </div>
-        <span className={styles.hudHint}>{hudHint}</span>
+        {/* Row 2: stats (left) + hint (right, hidden on mobile) */}
+        <div className={styles.hudRow2}>
+          <div className={styles.hudStats}>
+            <div className={styles.hudStat}>
+              <span className={styles.hudStatLabel}>Year</span>
+              <span className={styles.hudStatLabelShort}>YR</span>
+              <span className={styles.hudStatValue}>{game.currentYear}</span>
+            </div>
+            <div className={styles.hudStat}>
+              <span className={styles.hudStatLabel}>Planets</span>
+              <span className={styles.hudStatLabelShort}>PL</span>
+              <span className={styles.hudStatValue}>{myPlanets.length}</span>
+            </div>
+            <div className={styles.hudStat}>
+              <span className={styles.hudStatLabel}>Ships</span>
+              <span className={styles.hudStatLabelShort}>SH</span>
+              <span className={styles.hudStatValue}>{totalShips}</span>
+            </div>
+            <div className={styles.hudStat}>
+              <span className={styles.hudStatLabel}>In Transit</span>
+              <span className={styles.hudStatLabelShort}>TR</span>
+              <span className={styles.hudStatValue}>{inTransit}</span>
+            </div>
+          </div>
+          <span className={styles.hudHint}>{hudHint}</span>
+        </div>
       </header>
 
       {/* ── Ship Dispatch Modal ── */}
@@ -451,26 +878,49 @@ export default function GamePage() {
               onChange={(e) => setModalShips(Number(e.target.value))}
             />
             <div className={styles.modalActions}>
-              <button className={styles.modalConfirm} onClick={confirmOrder} disabled={modalShips < 1 || modalShips > maxShips}>
+              <button className={styles.modalConfirm} onClick={() => { soundManager.playBlip(); confirmOrder(); }} disabled={modalShips < 1 || modalShips > maxShips}>
                 Confirm
               </button>
-              <button className={styles.modalCancel} onClick={clearSelection}>Cancel</button>
+              <button className={styles.modalCancel} onClick={() => { soundManager.playBlip(); clearSelection(); }}>Cancel</button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── FAB End Turn ── */}
-      <button id="end-turn-btn" className={styles.fab} onClick={handleEndTurn} disabled={busy}>
-        {busy ? 'Processing' : 'End Turn'}
-        {pendingOrders.length > 0 && !busy && (
+      {/* ── FAB End Turn / Resolve Battles state machine ── */}
+      <button
+        id="end-turn-btn"
+        className={styles.fab}
+        onClick={handleEndTurn}
+        disabled={busy || iHaveEnded}
+      >
+        {busy ? 'Processing' : iHaveEnded ? 'Waiting…' : 'End Turn'}
+        {pendingOrders.length > 0 && !busy && !iHaveEnded && (
           <span className={styles.fabBadge}>{pendingOrders.length}</span>
         )}
       </button>
 
+      {/* ── Share (Copy Invite Code) ── */}
+      {game.inviteCode && (
+        <button
+          id="copy-code-btn"
+          className={styles.shareLink}
+          onClick={() => {
+            soundManager.playBlip();
+            navigator.clipboard.writeText(game.inviteCode).then(() => {
+              showToast('SECTOR CODE COPIED!');
+            }).catch(() => {
+              showToast(game.inviteCode); // fallback: just show the code
+            });
+          }}
+        >
+          [⎘] {game.inviteCode}
+        </button>
+      )}
+
       {/* ── Lobby link ── */}
-      <button id="leave-game-btn" className={styles.lobbyLink} onClick={() => router.push('/lobby')}>
-        ← Lobby
+      <button id="leave-game-btn" className={styles.lobbyLink} onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}>
+        [&lt;] LOBBY
       </button>
 
       {/* ── Error toast ── */}
@@ -482,6 +932,8 @@ export default function GamePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* OnMapBattle is now rendered inside .board — see above */}
     </div>
   );
 }

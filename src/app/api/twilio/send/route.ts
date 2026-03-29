@@ -14,8 +14,11 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'A valid phone number is required.' }, { status: 400 });
     }
 
-    let digits = phone.replace(/\\D/g, '');
+    // Strip everything except digits
+    let digits = phone.replace(/\D/g, '');
+    // If 10 digits, assume US and prepend country code
     if (digits.length === 10) digits = '1' + digits;
+    // If 11 digits starting with 1, that's fine (e.g. 15550001234)
     const formattedPhone = `+${digits}`;
 
     const verification = await client.verify.v2

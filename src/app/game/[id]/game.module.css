@@ -7,9 +7,71 @@
   background: #06060e;
 }
 
+/* CRT scanline overlay */
+.layout::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  will-change: opacity, transform;
+}
+
+.star[data-twinkle="a"] {
+  animation: twinkleA var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+}
+.star[data-twinkle="b"] {
+  animation: twinkleB var(--dur, 4s) ease-in-out infinite var(--delay, 0s);
+}
+.star[data-twinkle="c"] {
+  animation: twinkleC var(--dur, 5s) ease-in-out infinite var(--delay, 0s);
+}
+
+@keyframes twinkleA {
+  0%,100% { opacity: 0.08; transform: scale(1); }
+  50%      { opacity: 0.75; transform: scale(1.15); }
+}
+@keyframes twinkleB {
+  0%,100% { opacity: 0.12; transform: scale(1); }
+  40%     { opacity: 0.55; transform: scale(1.2); }
+  70%     { opacity: 0.3;  transform: scale(0.9); }
+}
+@keyframes twinkleC {
+  0%,100% { opacity: 0.05; transform: scale(1); }
+  30%     { opacity: 0.6;  transform: scale(1.1); }
+  60%     { opacity: 0.2;  transform: scale(1); }
+}
+
 .board {
   position: absolute;
   inset: 0;
+  /* Push canvas down below the fixed 48px top HUD so no planet
+     can render underneath it. Also pad the bottom to keep planets
+     above the FAB / lobby button area (bottom: 36px + height: 56px = 92px). */
+  padding-top: 48px;
+  padding-bottom: 96px;
   z-index: 1;
 }
 
@@ -72,11 +134,10 @@
 }
 
 /* ── Arcade Banners ──────────────────────────────────────────────────────── */
+/* Positioning is driven entirely by the parent motion.div (inline styles).   */
+/* The component itself is just a styled block — no absolute positioning here.*/
 .arcadeBanner {
-  position: absolute;
-  left: 50%;
-  top: 56px;
-  transform: translateX(-50%);
+  position: relative;
   font-family: 'Press Start 2P', monospace;
   font-size: 10px;
   line-height: 2.2;
@@ -89,8 +150,63 @@
   z-index: 6;
 }
 @keyframes bannerIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Spotlight Pulse Ring (DOM overlay anchored to planet pixel coords) ────── */
+.spotlightPulseRing {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 8;
+  animation: spotlightPulse 1.5s ease-in-out infinite;
+  --ring-color: #00ff88; /* overridden inline */
+}
+@keyframes spotlightPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1.0);
+    box-shadow: 0 0 20px 6px color-mix(in srgb, var(--ring-color) 45%, transparent);
+    border: 2px solid color-mix(in srgb, var(--ring-color) 60%, transparent);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.22);
+    box-shadow: 0 0 40px 15px color-mix(in srgb, var(--ring-color) 25%, transparent);
+    border: 2px solid color-mix(in srgb, var(--ring-color) 30%, transparent);
+  }
+}
+
+/* ── Spotlight Tether (arrow pointing FROM modal TOWARD planet) ───────────── */
+/* tetherDown: planet is below the modal — triangle points down               */
+.tetherDown {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 16px solid var(--tether-color, #00ff88);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 8px var(--tether-color, #00ff88));
+}
+/* tetherUp: planet is above the modal — triangle points up                   */
+.tetherUp {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 16px solid var(--tether-color, #00ff88);
+  pointer-events: none;
+  filter: drop-shadow(0 -2px 8px var(--tether-color, #00ff88));
 }
 .arcadeBannerColonize {
   background: rgba(0, 12, 0, 0.94);
@@ -110,26 +226,41 @@
   color: #cc88ff;
   box-shadow: 0 0 24px rgba(160,80,255,0.3), inset 0 0 12px rgba(160,80,255,0.05);
 }
+.arcadeBannerAttackFailed {
+  background: rgba(20, 0, 0, 0.94);
+  border: 1px solid #ff4444;
+  color: #ff6666;
+  box-shadow: 0 0 24px rgba(255,60,60,0.3), inset 0 0 12px rgba(255,60,60,0.05);
+}
 .arcadeBannerLine {
   display: block;
   margin: 1px 0;
 }
+@keyframes dismissBreathe {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.85; }
+}
 .arcadeBannerDismiss {
   display: block;
+  width: 100%;
   margin-top: 14px;
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 1px solid currentColor;
+  padding: 4px 0;
+  border: none;
   background: transparent;
   color: inherit;
-  opacity: 0.7;
-  transition: opacity 0.15s;
-  letter-spacing: 0.05em;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-align: center;
+  animation: dismissBreathe 2s ease-in-out infinite;
+  transition: text-shadow 0.15s;
 }
-.arcadeBannerDismiss:hover { opacity: 1; }
+.arcadeBannerDismiss:hover {
+  animation: none;
+  opacity: 1;
+  text-shadow: 0 0 12px currentColor;
+}
 
 /* ── Layout Shake (critical hit) ─────────────────────────────────────────── */
 .shake {
@@ -146,32 +277,59 @@
 }
 
 
+/* ── Neon Cyan Glow Pulse (HUD text) ────────────────────────────────────── */
+@keyframes hudCyanPulse {
+  0%, 100% { text-shadow: 0 0 6px rgba(0, 245, 255, 0.55), 0 0 16px rgba(0, 200, 255, 0.25); }
+  50%       { text-shadow: 0 0 10px rgba(0, 245, 255, 0.95), 0 0 28px rgba(0, 200, 255, 0.5), 0 0 48px rgba(0, 160, 255, 0.2); }
+}
+
 /* ── Top HUD Bar ─────────────────────────────────────────────────────────── */
 .topHud {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
+  z-index: 15;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0;
+  width: 100%;
+  /* Desktop: single row at 48px */
   height: 48px;
   padding: 0 20px;
-  background: rgba(6, 6, 14, 0.72);
+  background: rgba(6, 6, 14, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 200, 255, 0.18);
+  box-shadow: 0 1px 0 0 rgba(0, 200, 255, 0.08), 0 2px 18px rgba(0, 180, 255, 0.06);
 }
 
+/* Row wrappers — on desktop these are invisible to the flex container,
+   letting all children participate in the parent's single row directly. */
+.hudRow1 {
+  display: contents; /* children become direct flex items of .topHud */
+}
+
+.hudRow2 {
+  display: contents;
+}
+
+/* Desktop ordering: SPACE(0) → stats(1) → hint(2) → MUSIC(3) */
+@media (min-width: 601px) {
+  .hudLogo      { order: 0; margin-right: 20px; flex-shrink: 0; }
+  .hudStats     { order: 1; flex: 1; }
+  .hudHint      { order: 2; margin-left: auto; }
+  .musicToggle  { order: 3; margin-left: 16px; }
+}
+
+
 .hudLogo {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.9);
-  font-family: var(--font-mono);
-  margin-right: 20px;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #e0f8ff;
+  font-family: 'Press Start 2P', monospace;
   flex-shrink: 0;
+  animation: hudCyanPulse 2.8s ease-in-out infinite;
 }
 
 .hudDivider {
@@ -192,42 +350,189 @@
 .hudStat {
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 0 16px;
+  gap: 6px;
+  padding: 0 14px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
-.hudStat:first-child {
-  padding-left: 0;
-}
-.hudStat:last-child {
-  border-right: none;
-}
+.hudStat:first-child { padding-left: 0; }
+.hudStat:last-child { border-right: none; }
 
 .hudStatLabel {
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 6px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
-  font-family: var(--font-mono);
+  color: rgba(0, 220, 255, 0.5);
+  font-family: 'Press Start 2P', monospace;
+  text-shadow: 0 0 6px rgba(0, 200, 255, 0.3);
+}
+
+/* Abbreviated labels — hidden by default, shown on mobile */
+.hudStatLabelShort {
+  display: none;
+  font-size: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(0, 220, 255, 0.5);
+  font-family: 'Press Start 2P', monospace;
+  text-shadow: 0 0 6px rgba(0, 200, 255, 0.3);
 }
 
 .hudStatValue {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
-  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #d8f8ff;
+  font-family: 'Press Start 2P', monospace;
+  animation: hudCyanPulse 2.8s ease-in-out infinite;
+  animation-delay: -1.4s;
 }
 
 /* Contextual instruction (right side of HUD) */
 .hudHint {
   margin-left: auto;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
-  font-family: var(--font-mono);
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.28);
+  font-family: 'Press Start 2P', monospace;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  padding-left: 12px;
 }
+
+/* ── Music Toggle Button ─────────────────────────────────────────────────── */
+.musicToggle {
+  margin-left: 16px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  letter-spacing: 0.08em;
+  color: rgba(0, 200, 220, 0.4);
+  text-shadow: none;
+  transition: color 0.2s, text-shadow 0.2s;
+  white-space: nowrap;
+}
+.musicToggle:hover {
+  color: rgba(0, 220, 255, 0.7);
+}
+
+/* ON state — glowing neon cyan / hot-pink pulse */
+@keyframes musicGlow {
+  0%, 100% {
+    color: #00f5ff;
+    text-shadow:
+      0 0 6px  rgba(0, 245, 255, 0.9),
+      0 0 18px rgba(0, 200, 255, 0.6),
+      0 0 36px rgba(0, 160, 255, 0.3);
+  }
+  50% {
+    color: #ff2afc;
+    text-shadow:
+      0 0 8px  rgba(255, 42, 252, 1.0),
+      0 0 22px rgba(255, 0,  220, 0.7),
+      0 0 44px rgba(200, 0,  180, 0.35);
+  }
+}
+.musicToggleOn {
+  animation: musicGlow 1.6s ease-in-out infinite;
+}
+
+/* ── Mobile HUD: ≤ 600px — two-row layout ──────────────────────────────── */
+@media (max-width: 600px) {
+  .topHud {
+    height: auto;         /* expand to fit two rows */
+    padding: 6px 12px;
+    gap: 4px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Row 1 stays as logo+music, both on same line */
+  .hudRow1 {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* No extra logo margin on mobile */
+  .hudLogo { margin-right: 0; }
+
+  /* Music toggle flush right, no left margin */
+  .musicToggle { margin-left: 0; }
+
+  /* Row 2 shrinks to just the stat block, hint hidden */
+  .hudRow2 {
+    display: flex;        /* override display:contents */
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hudStats {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .hudStat {
+    padding: 0 8px;
+    gap: 4px;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hudStat:first-child { padding-left: 4px; }
+  .hudStat:last-child  { padding-right: 4px; }
+
+  /* Swap full labels for abbreviations */
+  .hudStatLabel      { display: none; }
+  .hudStatLabelShort { display: inline; }
+
+  /* Slightly smaller stat values to fit */
+  .hudStatValue { font-size: 9px; }
+
+  /* Hide hint text (the "tap a planet" helper) */
+  .hudHint { display: none; }
+}
+
+/* ── Very narrow (< 400px): tighten further ─────────────────────────────── */
+@media (max-width: 400px) {
+  .topHud { padding: 5px 8px; }
+  .hudStat { padding: 0 5px; gap: 3px; }
+  .hudStatValue { font-size: 8px; }
+  .musicToggle { font-size: 5px; }
+  .hudLogo { font-size: 8px; }
+}
+
+/* ── Adjust canvas safe-zone for taller mobile HUD ───────────────────────── */
+@media (max-width: 600px) {
+  .board { padding-top: 82px; }
+}
+
+
+/* Battle alert button */
+.battleAlert {
+  margin-left: 12px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid #ff4444;
+  background: rgba(255, 40, 40, 0.15);
+  color: #ff6666;
+  cursor: pointer;
+  white-space: nowrap;
+  animation: battlePulse 1.5s ease-in-out infinite;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.battleAlert:hover {
+  background: rgba(255, 40, 40, 0.3);
+}
+@keyframes battlePulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 60, 60, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(255, 60, 60, 0.6); }
+}
+
 
 /* ── Ship Dispatch Modal ─────────────────────────────────────────────────── */
 .modal {
@@ -341,7 +646,7 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* ── FAB End Turn ────────────────────────────────────────────────────────── */
+/* ── FAB End Turn (arcade button) ───────────────────────────────────────── */
 .fab {
   position: fixed;
   bottom: 36px;
@@ -350,28 +655,49 @@
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 28px;
-  height: 52px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #06060e;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  gap: 12px;
+  padding: 0 32px;
+  height: 56px;
+  background: linear-gradient(180deg, #ffcc44 0%, #e08800 55%, #c06400 100%);
+  color: #1a0600;
+  font-size: 9px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-family: var(--font-mono);
+  font-family: 'Press Start 2P', monospace;
   border: none;
-  border-radius: 100px;
+  border-radius: 6px;
   cursor: pointer;
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.5),
-    0 1px 4px rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s, opacity 0.15s;
+    0 6px 0 #7a3a00,
+    0 10px 28px rgba(255, 160, 0, 0.55),
+    0 0 48px rgba(255, 160, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.1s, box-shadow 0.1s;
   white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.fab:hover { transform: translateX(-50%) translateY(-2px); }
-.fab:active { transform: translateX(-50%) translateY(0); }
-.fab:disabled { opacity: 0.4; cursor: not-allowed; transform: translateX(-50%); }
+.fab:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow:
+    0 8px 0 #7a3a00,
+    0 14px 32px rgba(255, 160, 0, 0.65),
+    0 0 56px rgba(255, 160, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.fab:active {
+  transform: translateX(-50%) translateY(5px);
+  box-shadow:
+    0 1px 0 #7a3a00,
+    0 4px 12px rgba(255, 160, 0, 0.4),
+    inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.fab:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 0 #444, 0 6px 16px rgba(0,0,0,0.3);
+}
+
 
 .fabBadge {
   background: #06060e;
@@ -383,23 +709,113 @@
   margin-left: 2px;
 }
 
-/* ── Lobby Link ───────────────────────────────────────────────────────────── */
+/* ── FAB Combat State (battles pending) ──────────────────────────────────── */
+@keyframes combatPulse {
+  0%, 100% {
+    box-shadow:
+      0 6px 0 #7a0000,
+      0 10px 28px rgba(255, 40, 40, 0.55),
+      0 0 48px rgba(255, 40, 40, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 6px 0 #7a0000,
+      0 10px 40px rgba(255, 40, 40, 0.9),
+      0 0 80px rgba(255, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+}
+
+.fabCombat {
+  background: linear-gradient(180deg, #ff5533 0%, #cc1100 55%, #990000 100%);
+  color: #fff0ee;
+  text-shadow: 0 0 8px rgba(255, 100, 80, 0.6), 0 1px 0 rgba(0, 0, 0, 0.4);
+  animation: combatPulse 1.1s ease-in-out infinite;
+}
+.fabCombat:hover {
+  transform: translateX(-50%) translateY(-2px);
+  filter: brightness(1.15);
+}
+.fabCombat:active {
+  transform: translateX(-50%) translateY(5px);
+  filter: none;
+}
+
+/* ── Neon Blue Lobby Pulse ───────────────────────────────────────────────── */
+@keyframes lobbyGlow {
+  0%, 100% {
+    color: rgba(0, 180, 255, 0.75);
+    text-shadow:
+      0 0 6px  rgba(0, 180, 255, 0.7),
+      0 0 16px rgba(0, 120, 255, 0.4),
+      0 0 32px rgba(0,  80, 255, 0.15);
+  }
+  50% {
+    color: rgba(60, 220, 255, 0.95);
+    text-shadow:
+      0 0 8px  rgba(40, 210, 255, 1.0),
+      0 0 22px rgba(0, 150, 255, 0.65),
+      0 0 48px rgba(0,  80, 255, 0.3);
+  }
+}
+
+/* ── Lobby Link (arcade) ──────────────────────────────────────────────────── */
 .lobbyLink {
   position: fixed;
   bottom: 36px;
   right: 24px;
   z-index: 10;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
-  font-family: var(--font-mono);
-  letter-spacing: 0.05em;
+  font-size: 7px;
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 0.1em;
   cursor: pointer;
   background: none;
   border: none;
-  padding: 4px;
-  transition: color 0.15s;
+  padding: 6px 10px;
+  animation: lobbyGlow 2.4s ease-in-out infinite;
+  transition: filter 0.15s;
 }
-.lobbyLink:hover { color: rgba(255, 255, 255, 0.6); }
+.lobbyLink:hover {
+  filter: brightness(1.35);
+}
+
+/* ── Share / Copy Code Link (arcade, bottom-left) ─────────────────────────── */
+@keyframes shareGlow {
+  0%, 100% {
+    color: rgba(255, 200, 60, 0.75);
+    text-shadow:
+      0 0 6px  rgba(255, 200, 60, 0.7),
+      0 0 16px rgba(255, 160, 0, 0.4),
+      0 0 32px rgba(255, 120, 0, 0.15);
+  }
+  50% {
+    color: rgba(255, 230, 100, 0.95);
+    text-shadow:
+      0 0 8px  rgba(255, 230, 100, 1.0),
+      0 0 22px rgba(255, 180, 0, 0.65),
+      0 0 48px rgba(255, 120, 0, 0.3);
+  }
+}
+.shareLink {
+  position: fixed;
+  bottom: 36px;
+  left: 24px;
+  z-index: 10;
+  font-size: 7px;
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  animation: shareGlow 2.4s ease-in-out infinite;
+  transition: filter 0.15s;
+}
+.shareLink:hover {
+  filter: brightness(1.35);
+}
+
 
 /* ── Loading ─────────────────────────────────────────────────────────────── */
 .loading {

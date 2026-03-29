@@ -3,15 +3,29 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
   updateDoc,
   onSnapshot,
   Timestamp,
   query,
   where,
+  limit,
+  arrayUnion,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { generatePlanets, assignHomePlanet } from './gameEngine';
-import type { Game, Planet, Fleet, Player } from './types';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord } from './types';
+
+// ─── Invite Code Helper ───────────────────────────────────────────────────────
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
+function generateInviteCode(length = 5): string {
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
+  return code;
+}
 
 // ─── Game Collection Helpers ──────────────────────────────────────────────────
 
@@ -19,12 +33,16 @@ export async function createGame(hostUid: string): Promise<string> {
   const gameRef = doc(collection(db, 'games'));
   const planets = generatePlanets(20);
 
+  const inviteCode = generateInviteCode();
+
   const gameData: Omit<Game, 'id'> = {
     status: 'lobby',
     currentYear: 0,
     players: [hostUid],
     turn: hostUid,
+    turnEnded: {},
     hostUid,
+    inviteCode,
   };
 
   await setDoc(gameRef, gameData);
@@ -49,12 +67,32 @@ export async function createGame(hostUid: string): Promise<string> {
   return gameRef.id;
 }
 
-export async function joinGame(gameId: string, uid: string): Promise<void> {
+export async function joinGame(input: string, uid: string): Promise<string> {
+  let gameId = input;
+
+  // If input looks like a short invite code (≤ 6 chars), resolve it
+  if (input.length <= 6) {
+    const q = query(
+      collection(db, 'games'),
+      where('inviteCode', '==', input.toUpperCase()),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) throw new Error('Game not found');
+    gameId = snap.docs[0].id;
+  }
+
   const gameRef = doc(db, 'games', gameId);
   const gameSnap = await getDoc(gameRef);
   if (!gameSnap.exists()) throw new Error('Game not found');
 
   const game = gameSnap.data() as Game;
+
+  // Guard: if player is already in the game, just navigate them back — don't
+  // assign a second home planet or overwrite their player doc.
+  if (game.players.includes(uid)) {
+    return gameId;
+  }
 
   // Fetch existing planets
   const planetsSnap = await import('firebase/firestore').then(({ getDocs }) =>
@@ -75,6 +113,8 @@ export async function joinGame(gameId: string, uid: string): Promise<void> {
   };
   await setDoc(doc(db, 'games', gameId, 'players', uid), playerData);
   await updateDoc(gameRef, { players: [...game.players, uid] });
+
+  return gameId;
 }
 
 // ─── Real-time Subscriptions ──────────────────────────────────────────────────
@@ -84,7 +124,18 @@ export function subscribeGame(
   callback: (game: Game) => void
 ): () => void {
   return onSnapshot(doc(db, 'games', gameId), (snap) => {
-    if (snap.exists()) callback({ id: snap.id, ...(snap.data() as Omit<Game, 'id'>) });
+    if (!snap.exists()) return;
+    const data = { id: snap.id, ...(snap.data() as Omit<Game, 'id'>) };
+
+    // Auto-migrate: generate inviteCode for games created before this feature
+    if (!data.inviteCode) {
+      const code = generateInviteCode();
+      updateDoc(doc(db, 'games', gameId), { inviteCode: code });
+      // The updateDoc will trigger another snapshot with the code filled in
+      return;
+    }
+
+    callback(data);
   });
 }
 
@@ -122,4 +173,111 @@ export function subscribePlayer(
   return onSnapshot(doc(db, 'games', gameId, 'players', uid), (snap) => {
     if (snap.exists()) callback({ uid: snap.id, ...(snap.data() as Omit<Player, 'uid'>) });
   });
+}
+
+export function subscribeBattles(
+  gameId: string,
+  callback: (battles: BattleRecord[]) => void
+): () => void {
+  return onSnapshot(collection(db, 'games', gameId, 'combatResults'), (snap) => {
+    const battles = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<BattleRecord, 'id'>),
+    }));
+    callback(battles);
+  });
+}
+
+export async function markBattleViewed(
+  gameId: string,
+  battleId: string,
+  uid: string,
+  allPartyUids: string[]
+): Promise<void> {
+  const ref = doc(db, 'games', gameId, 'combatResults', battleId);
+  await updateDoc(ref, { viewedBy: arrayUnion(uid) });
+
+  // If all involved parties have now viewed, delete the record
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const viewed: string[] = (snap.data() as BattleRecord).viewedBy ?? [];
+    if (allPartyUids.every((u) => viewed.includes(u))) {
+      await deleteDoc(ref);
+    }
+  }
+}
+
+// ─── Colonization Events ──────────────────────────────────────────────────────
+
+export function subscribeColonizations(
+  gameId: string,
+  callback: (records: ColonizationRecord[]) => void
+): () => void {
+  return onSnapshot(collection(db, 'games', gameId, 'colonizationResults'), (snap) => {
+    const records = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<ColonizationRecord, 'id'>),
+    }));
+    callback(records);
+  });
+}
+
+export async function markColonizationViewed(
+  gameId: string,
+  colonizationId: string,
+  uid: string,
+  allPlayerUids: string[]
+): Promise<void> {
+  const ref = doc(db, 'games', gameId, 'colonizationResults', colonizationId);
+  await updateDoc(ref, { viewedBy: arrayUnion(uid) });
+
+  // If all players have now viewed, delete the record
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const viewed: string[] = (snap.data() as ColonizationRecord).viewedBy ?? [];
+    if (allPlayerUids.every((u) => viewed.includes(u))) {
+      await deleteDoc(ref);
+    }
+  }
+}
+
+// ─── Apply Pending Events to Official Map ─────────────────────────────────────
+
+/**
+ * Called when all players have ended their turn.
+ * Applies all pending battle and colonization results to the official planet docs,
+ * then cleans up the event records.
+ */
+export async function applyPendingEventsToOfficialMap(
+  gameId: string
+): Promise<void> {
+  // Apply colonization results to official planet docs
+  // NOTE: Do NOT delete the records here — they must persist until
+  // all players have viewed them via markColonizationViewed.
+  const colonSnap = await getDocs(collection(db, 'games', gameId, 'colonizationResults'));
+  for (const d of colonSnap.docs) {
+    const rec = d.data() as Omit<ColonizationRecord, 'id'>;
+    await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
+      owner: rec.fleetOwnerUid,
+      ships: rec.ships,
+    });
+  }
+
+  // Apply battle results to official planet docs
+  // NOTE: Do NOT delete the records here — they must persist until
+  // all players have viewed them via markBattleViewed.
+  const combatSnap = await getDocs(collection(db, 'games', gameId, 'combatResults'));
+  for (const d of combatSnap.docs) {
+    const rec = d.data() as Omit<BattleRecord, 'id'>;
+    if (rec.attackerWon) {
+      await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
+        owner: rec.attackerUid,
+        ships: rec.survivingAttackerShips,
+      });
+    } else {
+      await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
+        ships: rec.survivingDefenderShips,
+      });
+    }
+  }
 }

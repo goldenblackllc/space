@@ -1,0 +1,368 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   OnMapBattle — CSS Module
+   All z-index values are relative to the game map container (position:absolute).
+   z-layer stack:
+     34  .pixelFlash / .damageFloat — impact sparks and floating numbers
+     35  .battlePanel — unified combat UI panel
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Pixel Explosion Sparks (localized on defender planet) ───────────────── */
+.pixelFlash {
+  position: absolute;
+  z-index: 34;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: pixelFlashOut 0.55s ease-out forwards;
+}
+
+@keyframes pixelFlashOut {
+  0%   {
+    opacity: 1;
+    transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1.4);
+  }
+  60%  {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) translate(var(--dx, 12px), var(--dy, -14px)) rotate(var(--rot, 45deg)) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(calc(var(--dx, 12px) * 1.6), calc(var(--dy, -14px) * 1.6)) rotate(var(--rot, 45deg)) scale(0.3);
+  }
+}
+
+/* ── Floating Damage Numbers ──────────────────────────────────────────────── */
+.damageFloat {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 34;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #ff3344;
+  text-shadow: 0 0 8px #ff0000, 0 0 16px rgba(255, 0, 0, 0.5);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: damageFloatUp 1.6s ease-out forwards;
+}
+
+@keyframes damageFloatUp {
+  0%   { opacity: 1;   transform: translateX(-50%) translateY(0); }
+  70%  { opacity: 0.6; transform: translateX(-50%) translateY(-44px); }
+  100% { opacity: 0;   transform: translateX(-50%) translateY(-58px); }
+}
+
+
+/* ── Unified Battle Panel ─────────────────────────────────────────────────── */
+.battlePanel {
+  position: absolute;
+  z-index: 35;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Press Start 2P', monospace;
+  padding: 18px 24px;
+  border-radius: 6px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: auto;
+  
+  /* Inherits arcadeBanner styling */
+  background: rgba(6, 6, 14, 0.94);
+  border: 1px solid var(--panel-color, #ffffff);
+  color: #ffffff;
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--panel-color, #ffffff) 30%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--panel-color, #ffffff) 5%, transparent);
+}
+
+.battlePanelWon {
+  background: rgba(0, 12, 0, 0.94);
+}
+
+.battlePanelLost {
+  background: rgba(20, 0, 0, 0.94);
+}
+
+
+/* ── Tethers ───────────────────────────────────────────────────────────── */
+.tetherDown {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 16px solid var(--tether-color, #ffffff);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 8px var(--tether-color, #ffffff));
+}
+
+.tetherUp {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 16px solid var(--tether-color, #ffffff);
+  pointer-events: none;
+  filter: drop-shadow(0 -2px 8px var(--tether-color, #ffffff));
+}
+
+/* ── Panel Shared Elements ─────────────────────────────────────────────────── */
+.panelTitle {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--panel-color, #ffffff);
+  text-align: center;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.actionBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 10px 0;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--panel-color, #ffffff);
+  cursor: pointer;
+  pointer-events: auto;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  animation: buttonBreathe 2s ease-in-out infinite;
+  transition: text-shadow 0.15s, opacity 0.15s;
+}
+
+.actionBtn:hover {
+  animation: none;
+  opacity: 1;
+  text-shadow: 0 0 12px currentColor;
+}
+
+@keyframes buttonBreathe {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+
+/* ── Briefing Stage ──────────────────────────────────────────────────────── */
+.briefingBox {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+.briefingSide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.briefingRole {
+  font-size: 6px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}
+
+.briefingName {
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.briefingShips {
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.versus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 8px;
+  color: #ffffff;
+  font-weight: bold;
+  letter-spacing: 0.2em;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+
+/* ── Combat Stage ────────────────────────────────────────────────────────── */
+.combatLabels {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 4px;
+}
+
+.combatSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.combatSideRight {
+  align-items: flex-end;
+}
+
+.combatName {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.combatCount {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.combatTrack {
+  width: 100%;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.combatFillAtk {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #1a7a40 0%, #44ff88 100%);
+  transition: width 500ms ease-in-out;
+  border-radius: 3px 0 0 3px;
+}
+
+.combatFillDef {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  background: linear-gradient(270deg, #7a1a1a 0%, #ff5555 100%);
+  transition: width 500ms ease-in-out;
+  border-radius: 0 3px 3px 0;
+}
+
+.combatDivider {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateX(-50%);
+  transition: left 500ms ease-in-out;
+  box-shadow: 0 0 8px #ffffff;
+}
+
+.combatPulsing {
+  animation: barPulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes barPulse {
+  0%   { opacity: 0.55; }
+  100% { opacity: 1; }
+}
+
+.combatLosses {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  height: 1em;
+}
+
+.combatLossAtk {
+  font-size: 6px;
+  color: #44ff88;
+  opacity: 0.9;
+  animation: tickIn 0.25s ease-out;
+}
+
+.combatLossDef {
+  font-size: 6px;
+  color: #ff5555;
+  opacity: 0.9;
+  animation: tickIn 0.25s ease-out;
+}
+
+@keyframes tickIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 0.9; transform: translateY(0); }
+}
+
+
+/* ── Outcome Stage ───────────────────────────────────────────────────────── */
+.outcomeWinner {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  line-height: 1.4;
+  color: var(--panel-color);
+  text-shadow: 0 0 20px currentColor;
+  margin-bottom: 2px;
+}
+
+.outcomeLine {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--panel-color);
+  font-weight: 600;
+  text-align: center;
+  line-height: 2;
+}
+
+.outcomeStatHeader {
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  opacity: 0.5;
+  text-align: center;
+  margin-bottom: 4px;
+  margin-top: 6px;
+}
+
+.outcomeStat {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  opacity: 0.85;
+  text-align: center;
+  line-height: 1.9;
+}
+
+.outcomeStat strong {
+  opacity: 1;
+  color: #ffffff;
+}
+
+
+/* ── Colors ───────────────────────────────────────────────────────────────── */
+.atkColor { color: #00ff88; }
+.defColor { color: #ff4444; }

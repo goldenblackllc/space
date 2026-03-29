@@ -60,7 +60,10 @@ export default function LoginPage() {
 
   return (
     <main className={styles.main}>
-      {/* Starfield background dots */}
+      {/* CRT scanline overlay */}
+      <div className={styles.crt} aria-hidden="true" />
+
+      {/* Starfield */}
       <div className={styles.stars} aria-hidden="true">
         {Array.from({ length: 80 }).map((_, i) => (
           <span
@@ -78,23 +81,13 @@ export default function LoginPage() {
       </div>
 
       <div className={styles.panel}>
-        {/* Logo */}
-        <div className={styles.logo}>
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-            <circle cx="18" cy="18" r="17" stroke="var(--accent)" strokeWidth="1.5" />
-            <circle cx="18" cy="18" r="6" fill="var(--accent)" opacity="0.9" />
-            <ellipse cx="18" cy="18" rx="17" ry="6" stroke="var(--accent)" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-          </svg>
-          <span className={styles.logoText}>SPACE</span>
-        </div>
+        {/* Giant title */}
+        <h1 className={styles.title}>S P A C E</h1>
 
-        <h1 className={styles.title}>
-          {step === 'phone' ? 'Enter the galaxy' : 'Verify identity'}
-        </h1>
         <p className={styles.subtitle}>
           {step === 'phone'
-            ? 'A verification code will be sent to your phone.'
-            : `Code sent to ${phone}. Check your messages.`}
+            ? '> ENTER COMMANDER CREDENTIALS'
+            : `> ACCESS KEY TRANSMITTED TO ${phone}`}
         </p>
 
         <AnimatePresence mode="wait">
@@ -109,10 +102,10 @@ export default function LoginPage() {
               transition={{ duration: 0.2 }}
             >
               <div className={styles.fieldGroup}>
-                <label htmlFor="phone-input" className={styles.label}>Phone number</label>
+                <label htmlFor="phone-input" className={styles.label}>COMMANDER ID</label>
                 <input
                   id="phone-input"
-                  className="input"
+                  className={styles.input}
                   type="tel"
                   placeholder="+1 555 000 0000"
                   value={phone}
@@ -128,10 +121,10 @@ export default function LoginPage() {
               <button
                 id="send-code-btn"
                 type="submit"
-                className="btn btn-primary"
+                className={styles.arcadeBtn}
                 disabled={loading || phone.length < 7}
               >
-                {loading ? 'Sending…' : 'Send Code →'}
+                {loading ? 'TRANSMITTING...' : 'AUTHENTICATE'}
               </button>
             </motion.form>
           ) : (
@@ -145,10 +138,10 @@ export default function LoginPage() {
               transition={{ duration: 0.2 }}
             >
               <div className={styles.fieldGroup}>
-                <label htmlFor="otp-input" className={styles.label}>6-digit code</label>
+                <label htmlFor="otp-input" className={styles.label}>ACCESS KEY</label>
                 <input
                   id="otp-input"
-                  className="input"
+                  className={styles.input}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]{6}"
@@ -167,22 +160,24 @@ export default function LoginPage() {
               <button
                 id="verify-btn"
                 type="submit"
-                className="btn btn-primary"
+                className={styles.arcadeBtn}
                 disabled={loading || otp.length !== 6}
               >
-                {loading ? 'Verifying…' : 'Launch →'}
+                {loading ? 'VERIFYING...' : 'LAUNCH'}
               </button>
 
               <button
                 type="button"
-                className="btn btn-ghost"
+                className={styles.ghostBtn}
                 onClick={() => { setStep('phone'); setOtp(''); setError(''); }}
               >
-                ← Change number
+                [&lt;] CHANGE ID
               </button>
             </motion.form>
           )}
         </AnimatePresence>
+
+        <p className={styles.hint}>FORGOT KEY? RE-AUTHENTICATE ABOVE.</p>
       </div>
     </main>
   );
