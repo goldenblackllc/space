@@ -208,13 +208,14 @@ async function advanceTurn(
   for (const planet of planets) {
     if (planet.owner) {
       await updateDoc(doc(db, 'games', gameId, 'planets', planet.id), {
-        ships: increment(planet.productionBase),
+        ships: increment(planet.productionBase ?? 10), // Fallback for older games
       });
     }
   }
 
   // 2. Fleet arrival phase — compute results, store records, but do NOT touch planet docs
   const nextYear = currentYear + 1;
+  let sequence = 0;
   const arrivingFleets: Fleet[] = fleetsSnap.docs
     .filter((d) => (d.data() as Fleet).arriveYear <= nextYear)
     .map((d) => ({ id: d.id, ...(d.data() as Omit<Fleet, 'id'>) }));
@@ -235,11 +236,18 @@ async function advanceTurn(
     if (!targetPlanet) continue;
 
     if (targetPlanet.owner === fleet.owner) {
-      // Reinforce own planet — update in-memory map for stacking, and write to Firestore
+      // Reinforce own planet — store a ReinforcementRecord, do NOT update planet doc directly
       const newShips = targetPlanet.ships + fleet.ships;
       planetMap.set(targetPlanet.id, { ...targetPlanet, ships: newShips });
-      await updateDoc(doc(db, 'games', gameId, 'planets', fleet.toPlanetId), {
-        ships: newShips,
+
+      const reinRef = doc(collection(db, 'games', gameId, 'reinforcementResults'));
+      await setDoc(reinRef, {
+        fleetOwnerUid: fleet.owner,
+        planetId: fleet.toPlanetId,
+        ships: fleet.ships,
+        year: nextYear,
+        sequence: sequence++,
+        viewedBy: [],
       });
     } else if (targetPlanet.owner === null) {
       // Colonise — store a ColonizationRecord, do NOT update planet doc
@@ -249,6 +257,7 @@ async function advanceTurn(
         planetId: fleet.toPlanetId,
         ships: fleet.ships,
         year: nextYear,
+        sequence: sequence++,
         viewedBy: [],
       });
       // Reveal the planet for the fleet owner so Canvas can see through fog
@@ -279,6 +288,7 @@ async function advanceTurn(
         survivingAttackerShips: result.survivingAttackers,
         survivingDefenderShips: result.survivingDefenders,
         year: nextYear,
+        sequence: sequence++,
         viewedBy: [],
       });
       // Reveal the planet for the attacker so Canvas can see through fog
@@ -305,6 +315,27 @@ async function advanceTurn(
     await deleteDoc(doc(db, 'games', gameId, 'fleets', fleet.id));
   }
 
-  // 3. Increment year
-  await updateDoc(doc(db, 'games', gameId), { currentYear: nextYear });
+  // 3. Check for game over (one player owns all planets)
+  const planetOwners = new Set<string>();
+  let unownedCount = 0;
+  for (const p of planetMap.values()) {
+    if (p.owner) {
+      planetOwners.add(p.owner);
+    } else {
+      unownedCount++;
+    }
+  }
+
+  // If there's exactly one owner and no unowned planets, the game is over
+  if (planetOwners.size === 1 && unownedCount === 0) {
+    const winnerUid = Array.from(planetOwners)[0];
+    await updateDoc(doc(db, 'games', gameId), { 
+      currentYear: nextYear,
+      status: 'ended',
+      winnerUid
+    });
+  } else {
+    // 4. Increment year
+    await updateDoc(doc(db, 'games', gameId), { currentYear: nextYear });
+  }
 }

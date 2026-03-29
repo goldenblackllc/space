@@ -214,6 +214,12 @@
   color: #00ff88;
   box-shadow: 0 0 24px rgba(0,255,136,0.3), inset 0 0 12px rgba(0,255,136,0.05);
 }
+.arcadeBannerReinforce {
+  background: rgba(0, 10, 20, 0.94);
+  border: 1px solid #44aaff;
+  color: #88ccff;
+  box-shadow: 0 0 24px rgba(68,170,255,0.3), inset 0 0 12px rgba(68,170,255,0.05);
+}
 .arcadeBannerBattleWon {
   background: rgba(12, 0, 0, 0.94);
   border: 1px solid #ff6600;
@@ -937,4 +943,76 @@
   z-index: 30;
   pointer-events: none;
   letter-spacing: 0.04em;
+}
+
+/* ── Game Over Overlay ───────────────────────────────────────────────────── */
+.gameOverOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(6, 6, 14, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.gameOverBox {
+  background: rgba(10, 0, 20, 0.85);
+  border: 1px solid #ff0055;
+  box-shadow: 0 0 32px rgba(255, 0, 85, 0.4), inset 0 0 16px rgba(255, 0, 85, 0.1);
+  padding: 48px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.gameOverBoxWon {
+  background: rgba(0, 15, 10, 0.85);
+  border: 1px solid #00ff88;
+  box-shadow: 0 0 32px rgba(0, 255, 136, 0.4), inset 0 0 16px rgba(0, 255, 136, 0.1);
+}
+
+.gameOverTitle {
+  font-size: 32px;
+  color: #ff0055;
+  text-shadow: 0 0 16px rgba(255, 0, 85, 0.8);
+  margin-bottom: 16px;
+  letter-spacing: 0.1em;
+}
+
+.gameOverTitleWon {
+  color: #00ff88;
+  text-shadow: 0 0 16px rgba(0, 255, 136, 0.8);
+}
+
+.gameOverSubtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 48px;
+  line-height: 1.6;
+}
+
+.gameOverBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 16px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+
+.gameOverBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
 }

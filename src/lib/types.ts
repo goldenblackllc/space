@@ -38,6 +38,7 @@ export interface Game {
   turnEnded: Record<string, boolean>; // UID → has ended turn this year
   hostUid: string;
   inviteCode: string;  // Short 5-char code for sharing (e.g. "X7K2M")
+  winnerUid?: string;  // UID of the winner when game ends
 }
 
 export interface CombatPhase {
@@ -65,7 +66,9 @@ export interface BattleRecord {
   survivingAttackerShips: number;  // final attacker count after combat
   survivingDefenderShips: number;  // final defender count after combat
   year: number;
+  sequence?: number;         // resolution order
   viewedBy: string[];        // UIDs who have watched the replay
+  appliedToMap?: boolean;    // true once applied to the official planet docs
 }
 
 export interface ColonizationRecord {
@@ -74,5 +77,18 @@ export interface ColonizationRecord {
   planetId: string;
   ships: number;             // ships that arrived to colonize
   year: number;
+  sequence?: number;
   viewedBy: string[];
+  appliedToMap?: boolean;    // true once applied to the official planet docs
+}
+
+export interface ReinforcementRecord {
+  id: string;
+  fleetOwnerUid: string;
+  planetId: string;
+  ships: number;             // ships that arrived to reinforce
+  year: number;
+  sequence?: number;
+  viewedBy: string[];
+  appliedToMap?: boolean;    // true once applied to the official planet docs
 }

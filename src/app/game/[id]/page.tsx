@@ -12,11 +12,13 @@ import {
   subscribePlayer,
   subscribeBattles,
   subscribeColonizations,
+  subscribeReinforcements,
   markBattleViewed,
   markColonizationViewed,
+  markReinforcementViewed,
 } from '@/lib/firestore';
 import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
-import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord } from '@/lib/types';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import soundManager from '@/lib/soundManager';
 import AudioManager from '@/components/AudioManager';
@@ -27,7 +29,7 @@ const MODAL_H = 210;
 const MODAL_OFFSET = 20;
 
 // ── Arcade Event Types ────────────────────────────────────────────────────────
-type ReportType = 'colonize' | 'battle-lost' | 'battle-offensive' | 'battle-defensive';
+type ReportType = 'colonize' | 'battle-lost' | 'battle-offensive' | 'battle-defensive' | 'reinforce';
 
 interface ReportEvent {
   id: string; // The Firestore doc ID
@@ -40,6 +42,7 @@ interface ReportEvent {
   shipLoss?: number; // approximate damage for float numbers
   battleRec?: BattleRecord;
   colonizeRec?: ColonizationRecord;
+  reinforceRec?: ReinforcementRecord;
 }
 
 interface FloatNum {
@@ -189,6 +192,7 @@ export default function GamePage() {
 
   // ── Colonization Events ───────────────────────────────────────────────────
   const [colonizations, setColonizations] = useState<ColonizationRecord[]>([]);
+  const [reinforcements, setReinforcements] = useState<ReinforcementRecord[]>([]);
 
   // Local optimistic dismissal state
   const [localDismissed, setLocalDismissed] = useState<string[]>([]);
@@ -204,6 +208,7 @@ export default function GamePage() {
     // Apply colonizations — viewed ones for any player, PLUS unviewed ones
     // belonging to this user (so the planet is visible while the modal shows).
     for (const col of colonizations) {
+      if (col.appliedToMap) continue; // Already reflected in the official map
       const viewed = (col.viewedBy ?? []).includes(user.uid);
       const isMyColony = col.fleetOwnerUid === user.uid;
       if (viewed || isMyColony) {
@@ -215,8 +220,22 @@ export default function GamePage() {
       }
     }
 
+    // Apply reinforcements
+    for (const r of reinforcements) {
+      if (r.appliedToMap) continue;
+      const viewed = (r.viewedBy ?? []).includes(user.uid);
+      const isMyFleet = r.fleetOwnerUid === user.uid;
+      if (viewed || isMyFleet) {
+        const p = pMap.get(r.planetId);
+        if (p) {
+          p.ships += r.ships;
+        }
+      }
+    }
+
     // Apply viewed battles
     for (const b of battles) {
+      if (b.appliedToMap) continue; // Already reflected in the official map
       if ((b.viewedBy ?? []).includes(user.uid)) {
         const p = pMap.get(b.planetId);
         if (p) {
@@ -233,7 +252,30 @@ export default function GamePage() {
     return Array.from(pMap.values());
   }, [planets, battles, colonizations, user]);
 
-  // ── All unviewed events (colonizations + battles + defensive losses) ──────
+  // ── All unviewed events (reinforcements + colonizations + battles + defensive losses) ──────
+  const allUnviewedReinforcements = useMemo(() => {
+    if (!user) return [];
+    return reinforcements.filter(
+      (r) => r.fleetOwnerUid === user.uid && !(r.viewedBy ?? []).includes(user.uid)
+    );
+  }, [reinforcements, user]);
+
+  const reinforceReportEvents: ReportEvent[] = useMemo(() => {
+    return allUnviewedReinforcements.map((r) => {
+      const p = planets.find((pl) => pl.id === r.planetId);
+      return {
+        id: r.id,
+        planetId: r.planetId,
+        type: 'reinforce' as ReportType,
+        px: p?.x ?? 50,
+        py: p?.y ?? 50,
+        ships: r.ships,
+        production: p?.productionBase ?? 0,
+        reinforceRec: r,
+      };
+    });
+  }, [allUnviewedReinforcements, planets]);
+
   const allUnviewedColonizations = useMemo(() => {
     if (!user) return [];
     return colonizations.filter(
@@ -393,20 +435,28 @@ export default function GamePage() {
         setBattles(mine);
       }),
       subscribeColonizations(gameId, setColonizations),
+      subscribeReinforcements(gameId, setReinforcements),
     ];
     return () => unsubs.forEach((u) => u());
   }, [gameId, user]);
 
-  // Combine all unviewed events into the morning report queue.
-  // Sort order: Colonizations -> Defensive Losses -> Offensive Battles (most exciting last)
   const morningReportEvents = useMemo(() => {
     const result = [
+      ...reinforceReportEvents,
       ...colonizeReportEvents,
       ...defensiveBattleReportEvents,
       ...offensiveBattleReportEvents,
     ].filter((ev) => !localDismissed.includes(ev.id));
+
+    // Sort events so they are presented in the exact sequence they resolved
+    result.sort((a, b) => {
+      const seqA = a.battleRec?.sequence ?? a.colonizeRec?.sequence ?? a.reinforceRec?.sequence ?? 0;
+      const seqB = b.battleRec?.sequence ?? b.colonizeRec?.sequence ?? b.reinforceRec?.sequence ?? 0;
+      return seqA - seqB;
+    });
+
     return result;
-  }, [colonizeReportEvents, defensiveBattleReportEvents, offensiveBattleReportEvents, localDismissed]);
+  }, [reinforceReportEvents, colonizeReportEvents, defensiveBattleReportEvents, offensiveBattleReportEvents, localDismissed]);
 
 
 
@@ -439,7 +489,7 @@ export default function GamePage() {
     if (origin?.id === planet.id) { clearSelection(); return; }
     if (origin && planet.id !== origin.id) {
       setTarget(planet);
-      const originPlanet = planets.find((p) => p.id === origin.id);
+      const originPlanet = localPlanets.find((p) => p.id === origin.id);
       const alreadyQueuedForOrigin = pendingOrders
         .filter((o) => o.fromPlanetId === origin.id)
         .reduce((sum, o) => sum + o.ships, 0);
@@ -454,21 +504,21 @@ export default function GamePage() {
       return;
     }
     if (planet.owner !== user?.uid) { showToast('Select one of your own planets first.'); return; }
-    if (planet.ships < 2) { showToast('Not enough ships to send a fleet.'); return; }
+    if (planet.ships < 1) { showToast('Not enough ships to send a fleet.'); return; }
     setOrigin(planet);
     setTarget(null);
   }
 
   function confirmOrder() {
     if (!origin || !target || modalShips < 1) return;
-    const originPlanet = planets.find((p) => p.id === origin.id);
+    const originPlanet = localPlanets.find((p) => p.id === origin.id);
     if (!originPlanet) return;
     const alreadyQueued = pendingOrders
       .filter((o) => o.fromPlanetId === origin.id)
       .reduce((sum, o) => sum + o.ships, 0);
     const availableShips = originPlanet.ships - alreadyQueued;
-    if (modalShips >= availableShips) {
-      showToast('Must keep at least 1 ship at the source planet.');
+    if (modalShips > availableShips) {
+      showToast('Not enough ships.');
       return;
     }
     setPendingOrders((prev) => [...prev, {
@@ -482,12 +532,26 @@ export default function GamePage() {
 
   async function handleEndTurn() {
     if (!game || busy) return;
+
+    if (morningReportEvents.length > 0) {
+      showToast('Dismiss pending events first.');
+      return;
+    }
+    const hasUnresolvedBattles = battles.some((b) => 
+      (b.attackerUid === user?.uid || b.defenderUid === user?.uid) &&
+      !(b.viewedBy ?? []).includes(user?.uid ?? '')
+    );
+    if (hasUnresolvedBattles) {
+      showToast('Resolve pending battles first.');
+      return;
+    }
+
     setBusy(true);
     for (const order of pendingOrders) {
       const from = localPlanets.find((p) => p.id === order.fromPlanetId);
       const to = localPlanets.find((p) => p.id === order.toPlanetId);
-      if (!from || !to || from.ships <= 1) continue;
-      await dispatchFleet(gameId, user!.uid, from, to, Math.min(order.ships, from.ships - 1), game.currentYear);
+      if (!from || !to || from.ships <= 0) continue;
+      await dispatchFleet(gameId, user!.uid, from, to, Math.min(order.ships, from.ships), game.currentYear);
     }
     setPendingOrders([]);
     clearSelection();
@@ -503,7 +567,7 @@ export default function GamePage() {
   const alreadyQueuedFromOrigin = pendingOrders
     .filter((o) => o.fromPlanetId === origin?.id)
     .reduce((sum, o) => sum + o.ships, 0);
-  const maxShips = originPlanet ? originPlanet.ships - alreadyQueuedFromOrigin - 1 : 1;
+  const maxShips = originPlanet ? originPlanet.ships - alreadyQueuedFromOrigin : 1;
 
   // Player display labels: current player = "You", others = "Player N" (1-indexed by join order)
   const playerLabels = useMemo(() => {
@@ -535,6 +599,7 @@ export default function GamePage() {
   // ── Unified Spotlight ─────────────────────────────────────────────────
   // Priorities: The queue determines the order.
   const SPOTLIGHT_COLORS: Record<ReportType, string> = {
+    'reinforce': '#44aaff',
     'colonize': '#00ff88',
     'battle-lost': '#aa44ff',
     'battle-offensive': '#ffffff', // Battles naturally use white spotlights
@@ -753,13 +818,24 @@ export default function GamePage() {
                 {tetherDir === 'down' && <div className={styles.tetherDown} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
                 {tetherDir === 'up'   && <div className={styles.tetherUp} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
                 
-              <div className={`${styles.arcadeBanner} ${ev.type === 'colonize' ? styles.arcadeBannerColonize : styles.arcadeBannerBattleLost}`}>
+              <div className={`${styles.arcadeBanner} ${
+                ev.type === 'colonize' ? styles.arcadeBannerColonize :
+                ev.type === 'reinforce' ? styles.arcadeBannerReinforce :
+                styles.arcadeBannerBattleLost
+              }`}>
                 {ev.type === 'colonize' ? (
                   <>
                     <span className={styles.arcadeBannerLine}>&gt; PLANET SECURED</span>
                     <span className={styles.arcadeBannerLine}>  NEW COLONY ESTABLISHED</span>
                     <span className={styles.arcadeBannerLine}>  {ev.ships} SHIPS STATIONED</span>
                     <span className={styles.arcadeBannerLine}>  PRODUCTION: +{ev.production}/YR</span>
+                  </>
+                ) : ev.type === 'reinforce' ? (
+                  <>
+                    <span className={styles.arcadeBannerLine}>&gt; FLEET ARRIVED</span>
+                    <span className={styles.arcadeBannerLine}>  REINFORCEMENTS SECURED</span>
+                    <span className={styles.arcadeBannerLine}>  +{ev.ships} SHIPS STATIONED</span>
+                    <span className={styles.arcadeBannerLine}>  TOTAL: {livePlanet?.ships ?? ev.ships} SHIPS</span>
                   </>
                 ) : (
                   <>
@@ -780,6 +856,9 @@ export default function GamePage() {
                     // Mark underlying document as viewed to clear it from the queue
                     if (ev.type === 'colonize' && ev.colonizeRec) {
                       markColonizationViewed(gameId, ev.colonizeRec.id, user?.uid ?? '', game.players)
+                        .catch(err => showToast(`Error: ${err.message}`));
+                    } else if (ev.type === 'reinforce' && ev.reinforceRec) {
+                      markReinforcementViewed(gameId, ev.reinforceRec.id, user?.uid ?? '', game.players)
                         .catch(err => showToast(`Error: ${err.message}`));
                     } else if (ev.type === 'battle-lost' && ev.battleRec) {
                       markBattleViewed(
@@ -891,8 +970,18 @@ export default function GamePage() {
       <button
         id="end-turn-btn"
         className={styles.fab}
-        onClick={handleEndTurn}
-        disabled={busy || iHaveEnded}
+        onClick={() => {
+          if (iHaveEnded) {
+            const allDone = game?.players.every((pid) => game.turnEnded[pid]);
+            if (allDone && game?.id && user?.uid) {
+              showToast('Attempting to force-resume turn...');
+              endPlayerTurn(game.id, user.uid).catch((err) => showToast(err.message));
+            }
+          } else {
+            handleEndTurn();
+          }
+        }}
+        disabled={busy || (iHaveEnded && !(game?.players.every((pid) => game.turnEnded[pid])))}
       >
         {busy ? 'Processing' : iHaveEnded ? 'Waiting…' : 'End Turn'}
         {pendingOrders.length > 0 && !busy && !iHaveEnded && (
@@ -929,6 +1018,38 @@ export default function GamePage() {
           <motion.div key="err" className={styles.toast}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             {errorToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Game Over Overlay ── */}
+      <AnimatePresence>
+        {game.status === 'ended' && (
+          <motion.div
+            key="game-over"
+            className={styles.gameOverOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className={`${styles.gameOverBox} ${game.winnerUid === user?.uid ? styles.gameOverBoxWon : ''}`}>
+              <h1 className={`${styles.gameOverTitle} ${game.winnerUid === user?.uid ? styles.gameOverTitleWon : ''}`}>
+                {game.winnerUid === user?.uid ? 'YOU WIN!' : `${playerLabels[game.winnerUid ?? ''] ?? 'PLAYER'} WINS!`}
+              </h1>
+              <p className={styles.gameOverSubtitle}>
+                {game.winnerUid === user?.uid 
+                  ? 'GALAXY SECURED UNDER YOUR COMMAND' 
+                  : 'GALAXY LOST TO ENEMY FORCES'}
+              </p>
+              <button 
+                className={styles.gameOverBtn}
+                onClick={() => {
+                  soundManager.playBlip();
+                  router.push('/lobby');
+                }}
+              >
+                [ RETURN TO LOBBY ]
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

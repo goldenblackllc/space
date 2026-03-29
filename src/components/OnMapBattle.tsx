@@ -388,8 +388,11 @@ export default function OnMapBattle({
                  : <span className={styles.outcomeLine} style={{ opacity: 0.5 }}>YOU WERE DEFEATED</span>
                }
      
-               {!iWon && (
+               {!iWon && !isAttacker && (
                  <span className={styles.outcomeLine}>&gt; PLANET LOST TO ENEMY</span>
+               )}
+               {!iWon && isAttacker && (
+                 <span className={styles.outcomeLine}>&gt; INVASION FAILED</span>
                )}
                {iWon && !battle.attackerWon && (
                  <span className={styles.outcomeLine}>&gt; INVASION REPELLED</span>
