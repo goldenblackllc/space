@@ -12,10 +12,11 @@ import {
   limit,
   arrayUnion,
   deleteDoc,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { generatePlanets, assignHomePlanet } from './gameEngine';
-import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord } from './types';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord } from './types';
 
 // ─── Invite Code Helper ───────────────────────────────────────────────────────
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
@@ -200,8 +201,9 @@ export async function markBattleViewed(
   // If all involved parties have now viewed, delete the record
   const snap = await getDoc(ref);
   if (snap.exists()) {
-    const viewed: string[] = (snap.data() as BattleRecord).viewedBy ?? [];
-    if (allPartyUids.every((u) => viewed.includes(u))) {
+    const data = snap.data() as BattleRecord;
+    const viewed: string[] = data.viewedBy ?? [];
+    if (data.appliedToMap && allPartyUids.every((u) => viewed.includes(u))) {
       await deleteDoc(ref);
     }
   }
@@ -234,8 +236,43 @@ export async function markColonizationViewed(
   // If all players have now viewed, delete the record
   const snap = await getDoc(ref);
   if (snap.exists()) {
-    const viewed: string[] = (snap.data() as ColonizationRecord).viewedBy ?? [];
-    if (allPlayerUids.every((u) => viewed.includes(u))) {
+    const data = snap.data() as ColonizationRecord;
+    const viewed: string[] = data.viewedBy ?? [];
+    if (data.appliedToMap && allPlayerUids.every((u) => viewed.includes(u))) {
+      await deleteDoc(ref);
+    }
+  }
+}
+
+// ─── Reinforcement Events ──────────────────────────────────────────────────────
+
+export function subscribeReinforcements(
+  gameId: string,
+  callback: (records: ReinforcementRecord[]) => void
+): () => void {
+  return onSnapshot(collection(db, 'games', gameId, 'reinforcementResults'), (snap) => {
+    const records = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<ReinforcementRecord, 'id'>),
+    }));
+    callback(records);
+  });
+}
+
+export async function markReinforcementViewed(
+  gameId: string,
+  reinforcementId: string,
+  uid: string,
+  allPlayerUids: string[]
+): Promise<void> {
+  const ref = doc(db, 'games', gameId, 'reinforcementResults', reinforcementId);
+  await updateDoc(ref, { viewedBy: arrayUnion(uid) });
+
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const data = snap.data() as ReinforcementRecord;
+    const viewed: string[] = data.viewedBy ?? [];
+    if (data.appliedToMap && allPlayerUids.every((u) => viewed.includes(u))) {
       await deleteDoc(ref);
     }
   }
@@ -243,32 +280,54 @@ export async function markColonizationViewed(
 
 // ─── Apply Pending Events to Official Map ─────────────────────────────────────
 
-/**
- * Called when all players have ended their turn.
- * Applies all pending battle and colonization results to the official planet docs,
- * then cleans up the event records.
- */
 export async function applyPendingEventsToOfficialMap(
   gameId: string
 ): Promise<void> {
+  const gameSnap = await getDoc(doc(db, 'games', gameId));
+  const players = (gameSnap.data() as Game | undefined)?.players ?? [];
+
+  // Apply reinforcement results
+  const reinSnap = await getDocs(collection(db, 'games', gameId, 'reinforcementResults'));
+  for (const d of reinSnap.docs) {
+    const rec = d.data() as Omit<ReinforcementRecord, 'id'>;
+    if (rec.appliedToMap) continue;
+
+    // Reinforcements add to existing ships
+    await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
+      ships: increment(rec.ships),
+    });
+    
+    if (players.every((u) => (rec.viewedBy ?? []).includes(u))) {
+      await deleteDoc(d.ref);
+    } else {
+      await updateDoc(d.ref, { appliedToMap: true });
+    }
+  }
+
   // Apply colonization results to official planet docs
-  // NOTE: Do NOT delete the records here — they must persist until
-  // all players have viewed them via markColonizationViewed.
   const colonSnap = await getDocs(collection(db, 'games', gameId, 'colonizationResults'));
   for (const d of colonSnap.docs) {
     const rec = d.data() as Omit<ColonizationRecord, 'id'>;
+    if (rec.appliedToMap) continue;
+
     await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
       owner: rec.fleetOwnerUid,
       ships: rec.ships,
     });
+    
+    if (players.every((u) => (rec.viewedBy ?? []).includes(u))) {
+      await deleteDoc(d.ref);
+    } else {
+      await updateDoc(d.ref, { appliedToMap: true });
+    }
   }
 
   // Apply battle results to official planet docs
-  // NOTE: Do NOT delete the records here — they must persist until
-  // all players have viewed them via markBattleViewed.
   const combatSnap = await getDocs(collection(db, 'games', gameId, 'combatResults'));
   for (const d of combatSnap.docs) {
     const rec = d.data() as Omit<BattleRecord, 'id'>;
+    if (rec.appliedToMap) continue;
+
     if (rec.attackerWon) {
       await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
         owner: rec.attackerUid,
@@ -278,6 +337,13 @@ export async function applyPendingEventsToOfficialMap(
       await updateDoc(doc(db, 'games', gameId, 'planets', rec.planetId), {
         ships: rec.survivingDefenderShips,
       });
+    }
+    
+    const involved = [rec.attackerUid, rec.defenderUid];
+    if (involved.every((u) => (rec.viewedBy ?? []).includes(u))) {
+      await deleteDoc(d.ref);
+    } else {
+      await updateDoc(d.ref, { appliedToMap: true });
     }
   }
 }
