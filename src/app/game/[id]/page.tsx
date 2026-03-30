@@ -10,6 +10,7 @@ import {
   subscribePlanets,
   subscribeFleets,
   subscribePlayer,
+  subscribePlayers,
   subscribeBattles,
   subscribeColonizations,
   subscribeReinforcements,
@@ -140,6 +141,7 @@ export default function GamePage() {
   const [game, setGame] = useState<Game | null>(null);
   const [planets, setPlanets] = useState<Planet[]>([]);
   const [fleets, setFleets] = useState<Fleet[]>([]);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
 
   // ── Map container ref (for on-map battle coordinate conversion) ───────────
   const [boardDims, setBoardDims] = useState({ w: 0, h: 0, padTop: 48, padBot: 96 });
@@ -436,6 +438,7 @@ export default function GamePage() {
       }),
       subscribeColonizations(gameId, setColonizations),
       subscribeReinforcements(gameId, setReinforcements),
+      subscribePlayers(gameId, setAllPlayers),
     ];
     return () => unsubs.forEach((u) => u());
   }, [gameId, user]);
@@ -569,14 +572,19 @@ export default function GamePage() {
     .reduce((sum, o) => sum + o.ships, 0);
   const maxShips = originPlanet ? originPlanet.ships - alreadyQueuedFromOrigin : 1;
 
-  // Player display labels: current player = "You", others = "Player N" (1-indexed by join order)
+  // Player display labels: current player = "You", others use their stored name
   const playerLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     (game?.players ?? []).forEach((uid, idx) => {
-      labels[uid] = uid === user?.uid ? 'You' : `Player ${idx + 1}`;
+      if (uid === user?.uid) {
+        labels[uid] = 'You';
+      } else {
+        const playerDoc = allPlayers.find((p) => p.uid === uid);
+        labels[uid] = playerDoc?.name || `CMDR ${idx + 1}`;
+      }
     });
     return labels;
-  }, [game?.players, user?.uid]);
+  }, [game?.players, user?.uid, allPlayers]);
 
   // Turn readiness
   const iHaveEnded = !!(game?.turnEnded?.[user?.uid ?? '']);
@@ -1024,7 +1032,7 @@ export default function GamePage() {
 
       {/* ── Game Over Overlay ── */}
       <AnimatePresence>
-        {game.status === 'ended' && (
+        {game.status === 'ended' && morningReportEvents.length === 0 && (
           <motion.div
             key="game-over"
             className={styles.gameOverOverlay}

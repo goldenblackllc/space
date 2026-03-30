@@ -88,15 +88,64 @@
   gap: 28px;
 }
 
-.commanderLabel {
+/* ── Name Section ── */
+.nameSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nameLabel {
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
   color: rgba(255, 255, 255, 0.3);
   letter-spacing: 0.08em;
 }
-.commanderId {
+
+/* ── Toggle Group (planet count) ── */
+.toggleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggleLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.toggleRow {
+  display: flex;
+  gap: 6px;
+}
+
+.toggleBtn {
+  padding: 8px 14px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  color: rgba(0, 221, 255, 0.4);
+  background: rgba(0, 221, 255, 0.03);
+  border: 1px solid rgba(0, 221, 255, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.toggleBtn:hover {
+  border-color: rgba(0, 221, 255, 0.35);
+  color: rgba(0, 221, 255, 0.7);
+}
+
+.toggleBtnActive {
   color: #00ddff;
-  text-shadow: 0 0 8px rgba(0, 221, 255, 0.3);
+  background: rgba(0, 221, 255, 0.1);
+  border-color: rgba(0, 221, 255, 0.5);
+  box-shadow: 0 0 10px rgba(0, 221, 255, 0.15);
+  text-shadow: 0 0 6px rgba(0, 221, 255, 0.4);
 }
 
 /* ── Sector Cards ── */

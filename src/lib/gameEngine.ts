@@ -315,7 +315,7 @@ async function advanceTurn(
     await deleteDoc(doc(db, 'games', gameId, 'fleets', fleet.id));
   }
 
-  // 3. Check for game over (one player owns all planets)
+  // 3. Check for game over (one player owns all planets AND no enemy fleets in transit)
   const planetOwners = new Set<string>();
   let unownedCount = 0;
   for (const p of planetMap.values()) {
@@ -326,15 +326,25 @@ async function advanceTurn(
     }
   }
 
-  // If there's exactly one owner and no unowned planets, the game is over
+  let gameOver = false;
   if (planetOwners.size === 1 && unownedCount === 0) {
     const winnerUid = Array.from(planetOwners)[0];
-    await updateDoc(doc(db, 'games', gameId), { 
-      currentYear: nextYear,
-      status: 'ended',
-      winnerUid
-    });
-  } else {
+    // Check if any other player still has fleets in transit
+    const remainingFleetsSnap = await getDocs(fleetsRef);
+    const enemyFleets = remainingFleetsSnap.docs.filter(
+      (d) => (d.data() as Fleet).owner !== winnerUid
+    );
+    if (enemyFleets.length === 0) {
+      gameOver = true;
+      await updateDoc(doc(db, 'games', gameId), {
+        currentYear: nextYear,
+        status: 'ended',
+        winnerUid,
+      });
+    }
+  }
+
+  if (!gameOver) {
     // 4. Increment year
     await updateDoc(doc(db, 'games', gameId), { currentYear: nextYear });
   }

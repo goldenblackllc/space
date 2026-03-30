@@ -41,8 +41,8 @@ interface Props {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PHASE_INTERVAL_MS = 2000;
-const PROCESSING_LABEL_MS = 1200;
+const PHASE_INTERVAL_MS = 800;
+const PROCESSING_LABEL_MS = 500;
 const SPARKS_PER_HIT = 8;
 const SPARK_SCATTER_R = 42;
 

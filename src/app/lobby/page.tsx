@@ -10,6 +10,8 @@ import styles from './lobby.module.css';
 export default function LobbyPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const [playerName, setPlayerName] = useState('');
+  const [planetCount, setPlanetCount] = useState<10 | 20>(10);
   const [gameIdInput, setGameIdInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,11 +22,14 @@ export default function LobbyPage() {
 
   if (loading || !user) return null;
 
+  const nameTrimmed = playerName.trim();
+
   async function handleCreate() {
+    if (!nameTrimmed) return;
     setBusy(true);
     setError('');
     try {
-      const gameId = await createGame(user!.uid);
+      const gameId = await createGame(user!.uid, nameTrimmed, planetCount);
       router.push(`/game/${gameId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create game');
@@ -33,11 +38,11 @@ export default function LobbyPage() {
   }
 
   async function handleJoin() {
-    if (!gameIdInput.trim()) return;
+    if (!gameIdInput.trim() || !nameTrimmed) return;
     setBusy(true);
     setError('');
     try {
-      const resolvedId = await joinGame(gameIdInput.trim(), user!.uid);
+      const resolvedId = await joinGame(gameIdInput.trim(), user!.uid, nameTrimmed);
       router.push(`/game/${resolvedId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to join game');
@@ -76,10 +81,20 @@ export default function LobbyPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          {/* Commander ID */}
-          <p className={styles.commanderLabel}>
-            COMMANDER <span className={styles.commanderId}>{user.uid.slice(0, 12).toUpperCase()}</span>
-          </p>
+          {/* Commander Name Input */}
+          <div className={styles.nameSection}>
+            <label className={styles.nameLabel} htmlFor="player-name-input">
+              COMMANDER NAME
+            </label>
+            <input
+              id="player-name-input"
+              className={styles.input}
+              placeholder="ENTER YOUR CALLSIGN"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              maxLength={8}
+            />
+          </div>
 
           {error && <p className={styles.error}>{error}</p>}
 
@@ -92,11 +107,29 @@ export default function LobbyPage() {
                 <span className={styles.sectorTitle}>NEW SECTOR</span>
               </div>
               <p className={styles.sectorDesc}>&gt; GENERATE A NEW GALAXY<br/>&gt; AND AWAIT COMMANDERS</p>
+
+              {/* Planet count toggle */}
+              <div className={styles.toggleGroup}>
+                <span className={styles.toggleLabel}>PLANETS</span>
+                <div className={styles.toggleRow}>
+                  {([10, 20] as const).map((n) => (
+                    <button
+                      key={n}
+                      className={`${styles.toggleBtn} ${planetCount === n ? styles.toggleBtnActive : ''}`}
+                      onClick={() => setPlanetCount(n)}
+                      type="button"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
                 id="create-game-btn"
                 className={styles.arcadeBtn}
                 onClick={handleCreate}
-                disabled={busy}
+                disabled={busy || !nameTrimmed}
               >
                 {busy ? 'GENERATING...' : 'CREATE SECTOR'}
               </button>
@@ -122,7 +155,7 @@ export default function LobbyPage() {
                 id="join-game-btn"
                 className={styles.arcadeBtn}
                 onClick={handleJoin}
-                disabled={busy || !gameIdInput.trim()}
+                disabled={busy || !gameIdInput.trim() || !nameTrimmed}
               >
                 JOIN SECTOR
               </button>

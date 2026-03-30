@@ -24,6 +24,7 @@ export interface Fleet {
 
 export interface Player {
   uid: string;
+  name: string;
   phone: string;
   homePlanetId: string;
   revealedPlanets: string[]; // Fog of War: planet IDs the player can see
@@ -38,6 +39,7 @@ export interface Game {
   turnEnded: Record<string, boolean>; // UID → has ended turn this year
   hostUid: string;
   inviteCode: string;  // Short 5-char code for sharing (e.g. "X7K2M")
+  planetCount?: number; // Number of planets in the galaxy (10 or 20)
   winnerUid?: string;  // UID of the winner when game ends
 }
 

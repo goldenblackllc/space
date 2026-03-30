@@ -30,9 +30,9 @@ function generateInviteCode(length = 5): string {
 
 // ─── Game Collection Helpers ──────────────────────────────────────────────────
 
-export async function createGame(hostUid: string): Promise<string> {
+export async function createGame(hostUid: string, playerName: string, planetCount: number = 10): Promise<string> {
   const gameRef = doc(collection(db, 'games'));
-  const planets = generatePlanets(20);
+  const planets = generatePlanets(planetCount);
 
   const inviteCode = generateInviteCode();
 
@@ -44,6 +44,7 @@ export async function createGame(hostUid: string): Promise<string> {
     turnEnded: {},
     hostUid,
     inviteCode,
+    planetCount,
   };
 
   await setDoc(gameRef, gameData);
@@ -59,6 +60,7 @@ export async function createGame(hostUid: string): Promise<string> {
   // Create player doc
   const playerData: Player = {
     uid: hostUid,
+    name: playerName,
     phone: '',
     homePlanetId,
     revealedPlanets: [homePlanetId],
@@ -68,7 +70,7 @@ export async function createGame(hostUid: string): Promise<string> {
   return gameRef.id;
 }
 
-export async function joinGame(input: string, uid: string): Promise<string> {
+export async function joinGame(input: string, uid: string, playerName: string = ''): Promise<string> {
   let gameId = input;
 
   // If input looks like a short invite code (≤ 6 chars), resolve it
@@ -108,6 +110,7 @@ export async function joinGame(input: string, uid: string): Promise<string> {
 
   const playerData: Player = {
     uid,
+    name: playerName,
     phone: '',
     homePlanetId,
     revealedPlanets: [homePlanetId],
@@ -173,6 +176,19 @@ export function subscribePlayer(
 ): () => void {
   return onSnapshot(doc(db, 'games', gameId, 'players', uid), (snap) => {
     if (snap.exists()) callback({ uid: snap.id, ...(snap.data() as Omit<Player, 'uid'>) });
+  });
+}
+
+export function subscribePlayers(
+  gameId: string,
+  callback: (players: Player[]) => void
+): () => void {
+  return onSnapshot(collection(db, 'games', gameId, 'players'), (snap) => {
+    const players = snap.docs.map((d) => ({
+      uid: d.id,
+      ...(d.data() as Omit<Player, 'uid'>),
+    }));
+    callback(players);
   });
 }
 
