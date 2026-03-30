@@ -835,7 +835,7 @@ export default function GamePage() {
                     <span className={styles.arcadeBannerLine}>&gt; FLEET ARRIVED</span>
                     <span className={styles.arcadeBannerLine}>  REINFORCEMENTS SECURED</span>
                     <span className={styles.arcadeBannerLine}>  +{ev.ships} SHIPS STATIONED</span>
-                    <span className={styles.arcadeBannerLine}>  TOTAL: {(livePlanet?.ships ?? 0) + (ev.reinforceRec?.appliedToMap ? 0 : ev.ships)} SHIPS</span>
+                    <span className={styles.arcadeBannerLine}>  TOTAL: {(localPlanets.find((p) => p.id === ev.planetId)?.ships ?? 0) + ev.ships} SHIPS</span>
                   </>
                 ) : (
                   <>
