@@ -377,7 +377,7 @@ export default function GamePage() {
     // Check if this is a colonization event
     const colRec = colonizations.find((c) => c.id === evId);
     if (colRec) {
-      markColonizationViewed(gameId, colRec.id, user.uid, game.players);
+      markColonizationViewed(gameId, colRec.id, user.uid);
       return;
     }
     // Check if this is a battle-lost event (id ends with '-lost')
@@ -855,7 +855,7 @@ export default function GamePage() {
                     
                     // Mark underlying document as viewed to clear it from the queue
                     if (ev.type === 'colonize' && ev.colonizeRec) {
-                      markColonizationViewed(gameId, ev.colonizeRec.id, user?.uid ?? '', game.players)
+                      markColonizationViewed(gameId, ev.colonizeRec.id, user?.uid ?? '')
                         .catch(err => showToast(`Error: ${err.message}`));
                     } else if (ev.type === 'reinforce' && ev.reinforceRec) {
                       markReinforcementViewed(gameId, ev.reinforceRec.id, user?.uid ?? '')

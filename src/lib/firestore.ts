@@ -228,17 +228,16 @@ export async function markColonizationViewed(
   gameId: string,
   colonizationId: string,
   uid: string,
-  allPlayerUids: string[]
 ): Promise<void> {
   const ref = doc(db, 'games', gameId, 'colonizationResults', colonizationId);
   await updateDoc(ref, { viewedBy: arrayUnion(uid) });
 
-  // If all players have now viewed, delete the record
+  // Colonizations only notify the fleet owner, so once they've viewed it
+  // and it's been applied to the official map, clean it up immediately.
   const snap = await getDoc(ref);
   if (snap.exists()) {
     const data = snap.data() as ColonizationRecord;
-    const viewed: string[] = data.viewedBy ?? [];
-    if (data.appliedToMap && allPlayerUids.every((u) => viewed.includes(u))) {
+    if (data.appliedToMap) {
       await deleteDoc(ref);
     }
   }
@@ -317,7 +316,9 @@ export async function applyPendingEventsToOfficialMap(
       ships: rec.ships,
     });
     
-    if (players.every((u) => (rec.viewedBy ?? []).includes(u))) {
+    // Colonizations only notify the fleet owner — delete once they've viewed
+    const ownerViewed = (rec.viewedBy ?? []).includes(rec.fleetOwnerUid);
+    if (ownerViewed) {
       await deleteDoc(d.ref);
     } else {
       await updateDoc(d.ref, { appliedToMap: true });
