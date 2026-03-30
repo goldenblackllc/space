@@ -220,12 +220,12 @@ export default function GamePage() {
       }
     }
 
-    // Apply reinforcements
+    // Apply reinforcements — only after the user has dismissed the banner,
+    // so the canvas shows pre-reinforcement count while the modal is visible.
     for (const r of reinforcements) {
       if (r.appliedToMap) continue;
       const viewed = (r.viewedBy ?? []).includes(user.uid);
-      const isMyFleet = r.fleetOwnerUid === user.uid;
-      if (viewed || isMyFleet) {
+      if (viewed) {
         const p = pMap.get(r.planetId);
         if (p) {
           p.ships += r.ships;
