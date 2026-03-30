@@ -33,7 +33,7 @@ export default function AudioManager({
 
   // Initialize audio elements
   useEffect(() => {
-    mapAudioRef.current = new Audio('/assets/Unlatched_Basement_map_theme.mp3');
+    mapAudioRef.current = new Audio('/assets/Through_the_Viewport_map_theme.mp3');
     mapAudioRef.current.loop = true;
     mapAudioRef.current.volume = 0;
 

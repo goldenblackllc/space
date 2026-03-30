@@ -250,7 +250,7 @@ export default function GamePage() {
     }
 
     return Array.from(pMap.values());
-  }, [planets, battles, colonizations, user]);
+  }, [planets, battles, colonizations, reinforcements, user]);
 
   // ── All unviewed events (reinforcements + colonizations + battles + defensive losses) ──────
   const allUnviewedReinforcements = useMemo(() => {
@@ -835,7 +835,7 @@ export default function GamePage() {
                     <span className={styles.arcadeBannerLine}>&gt; FLEET ARRIVED</span>
                     <span className={styles.arcadeBannerLine}>  REINFORCEMENTS SECURED</span>
                     <span className={styles.arcadeBannerLine}>  +{ev.ships} SHIPS STATIONED</span>
-                    <span className={styles.arcadeBannerLine}>  TOTAL: {livePlanet?.ships ?? ev.ships} SHIPS</span>
+                    <span className={styles.arcadeBannerLine}>  TOTAL: {localPlanets.find((p) => p.id === ev.planetId)?.ships ?? ev.ships} SHIPS</span>
                   </>
                 ) : (
                   <>
@@ -967,7 +967,7 @@ export default function GamePage() {
       </AnimatePresence>
 
       {/* ── FAB End Turn / Resolve Battles state machine ── */}
-      <button
+      {morningReportEvents.length === 0 && <button
         id="end-turn-btn"
         className={styles.fab}
         onClick={() => {
@@ -987,7 +987,7 @@ export default function GamePage() {
         {pendingOrders.length > 0 && !busy && !iHaveEnded && (
           <span className={styles.fabBadge}>{pendingOrders.length}</span>
         )}
-      </button>
+      </button>}
 
       {/* ── Share (Copy Invite Code) ── */}
       {game.inviteCode && (
