@@ -172,7 +172,7 @@ export default function GamePage() {
   const [shake, setShake] = useState(false);
 
   // ── Background Music ──────────────────────────────────────────────────────
-  const [musicOn, setMusicOn] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
 
   function toggleMusic() {
     soundManager.unlock();
@@ -835,7 +835,7 @@ export default function GamePage() {
                     <span className={styles.arcadeBannerLine}>&gt; FLEET ARRIVED</span>
                     <span className={styles.arcadeBannerLine}>  REINFORCEMENTS SECURED</span>
                     <span className={styles.arcadeBannerLine}>  +{ev.ships} SHIPS STATIONED</span>
-                    <span className={styles.arcadeBannerLine}>  TOTAL: {localPlanets.find((p) => p.id === ev.planetId)?.ships ?? ev.ships} SHIPS</span>
+                    <span className={styles.arcadeBannerLine}>  TOTAL: {(livePlanet?.ships ?? 0) + (ev.reinforceRec?.appliedToMap ? 0 : ev.ships)} SHIPS</span>
                   </>
                 ) : (
                   <>
@@ -858,7 +858,7 @@ export default function GamePage() {
                       markColonizationViewed(gameId, ev.colonizeRec.id, user?.uid ?? '', game.players)
                         .catch(err => showToast(`Error: ${err.message}`));
                     } else if (ev.type === 'reinforce' && ev.reinforceRec) {
-                      markReinforcementViewed(gameId, ev.reinforceRec.id, user?.uid ?? '', game.players)
+                      markReinforcementViewed(gameId, ev.reinforceRec.id, user?.uid ?? '')
                         .catch(err => showToast(`Error: ${err.message}`));
                     } else if (ev.type === 'battle-lost' && ev.battleRec) {
                       markBattleViewed(
