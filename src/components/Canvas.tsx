@@ -23,6 +23,7 @@ interface CanvasProps {
   spotlightColor?: string;     // glow color (e.g. '#00ff88', '#aa44ff', '#ffffff')
   onPlanetClick: (planet: Planet, pixelX: number, pixelY: number) => void;
   onOrderCancel?: (orderId: string) => void;
+  className?: string;
 }
 
 const FOG_R = 16;
@@ -85,7 +86,7 @@ function getHitR(p: Planet) {
 
 export default function Canvas({
   planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor,
-  onPlanetClick, onOrderCancel,
+  onPlanetClick, onOrderCancel, className,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -488,7 +489,7 @@ export default function Canvas({
   }
 
   return (
-    <div ref={wrapRef} style={{ width: '100%', height: '100%' }}>
+    <div ref={wrapRef} style={{ width: '100%', height: '100%' }} className={className}>
       <canvas
         ref={canvasRef}
         onClick={handleClick}

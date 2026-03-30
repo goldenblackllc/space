@@ -176,6 +176,15 @@ export default function GamePage() {
   // ── Background Music ──────────────────────────────────────────────────────
   const [musicOn, setMusicOn] = useState(true);
 
+  // ── Mobile viewport detection (SSR-safe) ─────────────────────────────────
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   function toggleMusic() {
     soundManager.unlock();
     setMusicOn(!musicOn);
@@ -649,6 +658,7 @@ export default function GamePage() {
           spotlightColor={spotlightColor}
           onPlanetClick={handlePlanetClick}
           onOrderCancel={(id) => setPendingOrders((prev) => prev.filter((o) => o.id !== id))}
+          className={styles.canvasWrap}
         />
 
 
@@ -943,7 +953,7 @@ export default function GamePage() {
           <motion.div
             key="modal"
             className={styles.modal}
-            style={{ left: modalPos.x, top: modalPos.y }}
+            style={isMobile ? undefined : { left: modalPos.x, top: modalPos.y }}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
