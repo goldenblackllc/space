@@ -40,6 +40,7 @@ export interface Game {
   hostUid: string;
   inviteCode: string;  // Short 5-char code for sharing (e.g. "X7K2M")
   planetCount?: number; // Number of planets in the galaxy (10 or 20)
+  maxPlayers?: number;  // Maximum number of players allowed (default: 4)
   winnerUid?: string;  // UID of the winner when game ends
 }
 

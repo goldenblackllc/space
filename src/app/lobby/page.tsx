@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createGame, joinGame } from '@/lib/firestore';
+import { createGame, joinGame, getMyGames, deleteGame } from '@/lib/firestore';
 import { motion } from 'framer-motion';
+import type { Game } from '@/lib/types';
 import styles from './lobby.module.css';
 
 export default function LobbyPage() {
@@ -15,6 +16,141 @@ export default function LobbyPage() {
   const [gameIdInput, setGameIdInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [myGames, setMyGames] = useState<(Game & { id: string })[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // ── Tournament registration state ────────────────────────────────────────
+  const tournamentId = process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID;
+  const [tourney, setTourney] = useState<{
+    name: string;
+    state: string;
+    participantCount: number;
+    maxParticipants: number | null;
+    participants: string[];
+    myMatch: { opponentName: string; round: number } | null;
+  } | null>(null);
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinMsg, setJoinMsg] = useState('');
+  const [tourneyError, setTourneyError] = useState('');
+
+  async function fetchTourney() {
+    if (!tournamentId) return;
+    setTourneyError('');
+    try {
+      const [tRes, pRes, mRes] = await Promise.all([
+        fetch(`/api/challonge?path=/tournaments/${tournamentId}.json`),
+        fetch(`/api/challonge?path=/tournaments/${tournamentId}/participants.json`),
+        fetch(`/api/challonge?path=/tournaments/${tournamentId}/matches.json`),
+      ]);
+
+      if (!tRes.ok) {
+        const errJson = await tRes.json().catch(() => ({}));
+        // v1 errors: { errors: ['message'] }
+        const msg = Array.isArray(errJson?.errors)
+          ? errJson.errors[0]
+          : errJson?.error ?? `Challonge API error ${tRes.status}`;
+        setTourneyError(msg);
+        return;
+      }
+
+      const [tJson, pJson, mJson] = await Promise.all([tRes.json(), pRes.json(), mRes.json()]);
+      const t = tJson.tournament;
+      console.log('[fetchTourney] v1 state:', t?.state);
+
+      // v1: participants is an array of { participant: { id, name, misc } }
+      const participantObjs: { id: string | number; name: string; misc?: string }[] =
+        (pJson as { participant: { id: string | number; name: string; misc?: string } }[])
+          .map((p) => p.participant);
+      const participantNames = participantObjs.map((p) => p.name);
+
+      // Find myself by UID stored in misc
+      const me = participantObjs.find((p) => p.misc === user?.uid);
+
+      // Find my open match
+      // v1: matches is array of { match: { id, state, round, player1_id, player2_id } }
+      let myMatch: { opponentName: string; round: number } | null = null;
+      if (me) {
+        const matches: { id: string | number; state: string; round: number; player1_id: string | number; player2_id: string | number }[] =
+          (mJson as { match: { id: string | number; state: string; round: number; player1_id: string | number; player2_id: string | number } }[])
+            .map((m) => m.match);
+
+        const openMatch = matches.find(
+          (m) =>
+            m.state === 'open' &&
+            (String(m.player1_id) === String(me.id) || String(m.player2_id) === String(me.id))
+        );
+
+        if (openMatch) {
+          const opponentId =
+            String(openMatch.player1_id) === String(me.id)
+              ? openMatch.player2_id
+              : openMatch.player1_id;
+          const opponent = participantObjs.find((p) => String(p.id) === String(opponentId));
+          myMatch = {
+            opponentName: opponent?.name ?? 'TBD',
+            round: openMatch.round,
+          };
+        }
+      }
+
+      setTourney({
+        name: t?.name ?? 'Tournament',
+        state: t?.state ?? 'pending',
+        participantCount: participantNames.length,
+        maxParticipants: t?.signup_cap ?? null,
+        participants: participantNames,
+        myMatch,
+      });
+    } catch (e) {
+      console.error('[fetchTourney]', e);
+      setTourneyError(e instanceof Error ? e.message : 'Failed to load tournament');
+    }
+  }
+
+  async function handleJoinTourney() {
+    if (!tournamentId || !nameTrimmed) return;
+    setJoinBusy(true);
+    setJoinMsg('');
+    try {
+      const res = await fetch(
+        `/api/challonge?path=/tournaments/${tournamentId}/participants.json`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // v1 format
+          body: JSON.stringify({
+            participant: { name: nameTrimmed, misc: user!.uid },
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const detail = Array.isArray(err?.errors)
+          ? err.errors[0]
+          : err?.error ?? `Error ${res.status}`;
+        throw new Error(detail);
+      }
+      setJoinMsg(`${nameTrimmed} registered!`);
+      await fetchTourney(); // refresh count
+    } catch (e) {
+      setJoinMsg(e instanceof Error ? e.message : 'Registration failed');
+    } finally {
+      setJoinBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (user) {
+      getMyGames(user.uid).then(setMyGames).catch(() => {});
+      fetchTourney();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('commanderName');
+    if (saved) setPlayerName(saved);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -23,6 +159,19 @@ export default function LobbyPage() {
   if (loading || !user) return null;
 
   const nameTrimmed = playerName.trim();
+
+  async function handleDeleteGame(gameId: string) {
+    if (!window.confirm('Delete this sector? This cannot be undone.')) return;
+    setDeletingId(gameId);
+    try {
+      await deleteGame(gameId, user!.uid);
+      setMyGames((prev) => prev.filter((g) => g.id !== gameId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleCreate() {
     if (!nameTrimmed) return;
@@ -91,7 +240,11 @@ export default function LobbyPage() {
               className={styles.input}
               placeholder="ENTER YOUR CALLSIGN"
               value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value.slice(0, 8);
+                setPlayerName(v);
+                localStorage.setItem('commanderName', v);
+              }}
               maxLength={8}
             />
           </div>
@@ -165,7 +318,131 @@ export default function LobbyPage() {
           {/* Bottom stat bar */}
           <div className={styles.statsBar}>
             <span className={styles.stat}>STATUS: <span className={styles.statGlow}>ONLINE</span></span>
+            {tournamentId && (
+              <button
+                className={styles.ghostBtn}
+                onClick={() => router.push('/bracket')}
+              >
+                [⚡] BRACKET
+              </button>
+            )}
           </div>
+
+          {tourneyError && (
+            <div className={styles.errorBox}>{tourneyError}</div>
+          )}
+
+          {/* ── YOUR NEXT MATCH ── */}
+          {tourney?.myMatch && (
+            <div className={styles.myMatchBox}>
+              <div className={styles.myMatchHeader}>
+                <span className={styles.myMatchIcon}>⚔</span>
+                <span className={styles.myMatchLabel}>YOUR NEXT MATCH</span>
+              </div>
+              <div className={styles.myMatchVs}>
+                <span className={styles.myMatchRound}>ROUND {tourney.myMatch.round}</span>
+                <span className={styles.myMatchOpponent}>VS. {tourney.myMatch.opponentName.toUpperCase()}</span>
+              </div>
+              <p className={styles.myMatchHint}>
+                Create a sector and share the code with your opponent, or ask them to share theirs with you.
+              </p>
+              <button
+                className={styles.myMatchBracketBtn}
+                onClick={() => router.push('/bracket')}
+              >
+                [⚡] VIEW FULL BRACKET
+              </button>
+            </div>
+          )}
+
+          {/* ── JOIN CONTEST ── */}
+          {tourney && tourney.state !== 'underway' && tourney.state !== 'complete' && (
+            <div className={styles.contestBox}>
+              <div className={styles.contestHeader}>
+                <span className={styles.contestIcon}>⚡</span>
+                <div>
+                  <span className={styles.contestTitle}>{tourney.name.toUpperCase()}</span>
+                  <span className={styles.contestSub}>
+                    {tourney.maxParticipants !== null
+                      ? `REGISTRATION ${tourney.participantCount >= tourney.maxParticipants ? 'FULL' : 'OPEN'} — ${tourney.participantCount}/${tourney.maxParticipants} COMMANDERS`
+                      : `REGISTRATION OPEN — ${tourney.participantCount} COMMANDERS ENROLLED`}
+                  </span>
+                </div>
+              </div>
+
+              {tourney.participants.includes(nameTrimmed) ? (
+                <p className={styles.contestAlready}>✓ {nameTrimmed} IS REGISTERED</p>
+              ) : tourney.maxParticipants !== null && tourney.participantCount >= tourney.maxParticipants ? (
+                <p className={styles.contestFull}>TOURNAMENT IS FULL — REGISTRATION CLOSED</p>
+              ) : (
+                <>
+                  {!nameTrimmed && (
+                    <p className={styles.contestWarn}>Enter your Commander Name above to register.</p>
+                  )}
+                  <button
+                    id="join-contest-btn"
+                    className={styles.contestBtn}
+                    disabled={joinBusy || !nameTrimmed}
+                    onClick={handleJoinTourney}
+                  >
+                    {joinBusy ? 'REGISTERING...' : '⚡ JOIN CONTEST'}
+                  </button>
+                </>
+              )}
+
+              {joinMsg && (
+                <p className={`${styles.contestMsg} ${
+                  joinMsg.includes('registered') ? styles.contestMsgOk : styles.contestMsgErr
+                }`}>{joinMsg}</p>
+              )}
+
+              <div className={styles.contestRoster}>
+                {tourney.participants.slice(0, 12).map((name) => (
+                  <span key={name} className={styles.contestPill}>{name}</span>
+                ))}
+                {tourney.participantCount > 12 && (
+                  <span className={styles.contestPill}>+{tourney.participantCount - 12} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* My Games */}
+          {myGames.length > 0 && (
+            <div className={styles.myGames}>
+              <span className={styles.myGamesTitle}>MY SECTORS</span>
+              {myGames
+                .sort((a, b) => {
+                  const order = { active: 0, lobby: 1, ended: 2 };
+                  return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+                })
+                .map((g) => (
+                  <div key={g.id} className={styles.myGame}>
+                    <span className={`${styles.myGameStatus} ${styles['myGameStatus_' + g.status]}`}>
+                      {g.status.toUpperCase()}
+                    </span>
+                    <span className={styles.myGameCode}>{g.inviteCode}</span>
+                    <span className={styles.myGamePlayers}>{g.players.length}P</span>
+                    <button
+                      className={styles.myGameBtn}
+                      onClick={() => router.push(`/game/${g.id}`)}
+                    >
+                      {g.status === 'lobby' ? 'ENTER' : g.status === 'active' ? 'REJOIN' : 'VIEW'}
+                    </button>
+                    {g.hostUid === user?.uid && g.status !== 'active' && (
+                      <button
+                        className={styles.myGameDelete}
+                        disabled={deletingId === g.id}
+                        onClick={() => handleDeleteGame(g.id)}
+                        title="Delete sector"
+                      >
+                        {deletingId === g.id ? '…' : '✕'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </main>

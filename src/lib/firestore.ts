@@ -6,7 +6,6 @@ import {
   getDocs,
   updateDoc,
   onSnapshot,
-  Timestamp,
   query,
   where,
   limit,
@@ -30,7 +29,12 @@ function generateInviteCode(length = 5): string {
 
 // ─── Game Collection Helpers ──────────────────────────────────────────────────
 
-export async function createGame(hostUid: string, playerName: string, planetCount: number = 10): Promise<string> {
+export async function createGame(
+  hostUid: string,
+  playerName: string,
+  planetCount: number = 10,
+  maxPlayers: number = 4
+): Promise<string> {
   const gameRef = doc(collection(db, 'games'));
   const planets = generatePlanets(planetCount);
 
@@ -45,6 +49,7 @@ export async function createGame(hostUid: string, playerName: string, planetCoun
     hostUid,
     inviteCode,
     planetCount,
+    maxPlayers,
   };
 
   await setDoc(gameRef, gameData);
@@ -68,6 +73,23 @@ export async function createGame(hostUid: string, playerName: string, planetCoun
   await setDoc(doc(db, 'games', gameRef.id, 'players', hostUid), playerData);
 
   return gameRef.id;
+}
+
+/**
+ * Host-only: start the game. Requires at least 2 players.
+ * Transitions status from 'lobby' → 'active'.
+ */
+export async function startGame(gameId: string, hostUid: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+  if (!gameSnap.exists()) throw new Error('Game not found');
+
+  const game = gameSnap.data() as Game;
+  if (game.hostUid !== hostUid) throw new Error('Only the host can start the game');
+  if (game.status !== 'lobby') throw new Error('Game has already started');
+  if (game.players.length < 2) throw new Error('Need at least 2 players to start');
+
+  await updateDoc(gameRef, { status: 'active' });
 }
 
 export async function joinGame(input: string, uid: string, playerName: string = ''): Promise<string> {
@@ -97,6 +119,17 @@ export async function joinGame(input: string, uid: string, playerName: string = 
     return gameId;
   }
 
+  // Guard: block joining a game that has already started or ended
+  if (game.status !== 'lobby') {
+    throw new Error('This game has already started. Ask the host to create a new sector.');
+  }
+
+  // Guard: block joining a game that is already full
+  const maxPlayers = game.maxPlayers ?? 4;
+  if (game.players.length >= maxPlayers) {
+    throw new Error(`This sector is full (${maxPlayers} players max).`);
+  }
+
   // Fetch existing planets
   const planetsSnap = await import('firebase/firestore').then(({ getDocs }) =>
     getDocs(collection(db, 'games', gameId, 'planets'))
@@ -121,14 +154,64 @@ export async function joinGame(input: string, uid: string, playerName: string = 
   return gameId;
 }
 
+/**
+ * Returns all games the given UID is a participant in.
+ */
+export async function getMyGames(uid: string): Promise<(Game & { id: string })[]> {
+  const q = query(
+    collection(db, 'games'),
+    where('players', 'array-contains', uid)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Game, 'id'>) }));
+}
+
+/**
+ * Surrender: the calling player concedes defeat.
+ * Sets game status to 'ended' and awards the win to every other player.
+ * For 2-player games this means the single opponent wins.
+ * For multi-player games the first non-surrendering player is declared winner.
+ */
+export async function surrenderGame(gameId: string, uid: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+  if (!gameSnap.exists()) throw new Error('Game not found');
+  const game = gameSnap.data() as Game;
+  if (game.status !== 'active') throw new Error('Game is not active');
+
+  // Pick the winner: first player who is NOT the one surrendering
+  const opponentUid = game.players.find((p) => p !== uid) ?? null;
+  if (!opponentUid) throw new Error('No opponent found');
+
+  await updateDoc(gameRef, { status: 'ended', winnerUid: opponentUid });
+}
+
+/**
+ * Delete a game. Only the host can delete, and only lobby/ended games
+ * (can't nuke an in-progress game).
+ */
+export async function deleteGame(gameId: string, uid: string): Promise<void> {
+  const gameRef = doc(db, 'games', gameId);
+  const snap = await getDoc(gameRef);
+  if (!snap.exists()) return; // already gone
+  const game = snap.data() as Game;
+  if (game.hostUid !== uid) throw new Error('Only the host can delete a sector');
+  if (game.status === 'active') throw new Error('Cannot delete an active game');
+  await deleteDoc(gameRef);
+}
+
 // ─── Real-time Subscriptions ──────────────────────────────────────────────────
 
 export function subscribeGame(
   gameId: string,
-  callback: (game: Game) => void
+  callback: (game: Game) => void,
+  onDeleted?: () => void
 ): () => void {
   return onSnapshot(doc(db, 'games', gameId), (snap) => {
-    if (!snap.exists()) return;
+    if (!snap.exists()) {
+      onDeleted?.();
+      return;
+    }
     const data = { id: snap.id, ...(snap.data() as Omit<Game, 'id'>) };
 
     // Auto-migrate: generate inviteCode for games created before this feature

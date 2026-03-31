@@ -284,7 +284,8 @@
 /* ── Stats bar ── */
 .statsBar {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 0;
   border-top: 1px solid rgba(0, 221, 255, 0.08);
 }
@@ -300,3 +301,322 @@
   color: #00ff88;
   text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
 }
+
+/* ── My Games / My Sectors ── */
+.myGames {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 221, 255, 0.08);
+  padding-top: 20px;
+}
+
+.myGamesTitle {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.28);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.myGame {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(0, 221, 255, 0.03);
+  border: 1px solid rgba(0, 221, 255, 0.1);
+  transition: border-color 0.15s;
+}
+.myGame:hover {
+  border-color: rgba(0, 221, 255, 0.25);
+}
+
+.myGameStatus {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.myGameStatus_lobby {
+  color: #ffcc44;
+  background: rgba(255, 200, 0, 0.1);
+  border: 1px solid rgba(255, 200, 0, 0.3);
+}
+.myGameStatus_active {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+.myGameStatus_ended {
+  color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.myGameCode {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: rgba(0, 221, 255, 0.7);
+  letter-spacing: 0.14em;
+  flex: 1;
+}
+
+.myGamePlayers {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.65);
+  flex-shrink: 0;
+}
+
+.myGameBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(0, 221, 255, 0.08);
+  border: 1px solid rgba(0, 221, 255, 0.2);
+  color: rgba(0, 221, 255, 0.7);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.myGameBtn:hover {
+  background: rgba(0, 221, 255, 0.15);
+  border-color: rgba(0, 221, 255, 0.5);
+  color: #00ddff;
+}
+
+.myGameDelete {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(255, 60, 60, 0.08);
+  border: 1px solid rgba(255, 60, 60, 0.2);
+  color: rgba(255, 80, 80, 0.5);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+.myGameDelete:hover:not(:disabled) {
+  background: rgba(255, 60, 60, 0.2);
+  border-color: rgba(255, 60, 60, 0.5);
+  color: #ff4444;
+}
+.myGameDelete:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Join Contest Card ── */
+.contestBox {
+  border: 1px solid rgba(255, 200, 0, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 180, 0, 0.03);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.contestHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.contestIcon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.contestTitle {
+  display: block;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #ffcc44;
+  text-shadow: 0 0 10px rgba(255, 200, 0, 0.4);
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.contestSub {
+  display: block;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  color: rgba(255, 200, 0, 0.4);
+  letter-spacing: 0.06em;
+  line-height: 1.8;
+}
+
+.contestBtn {
+  width: 100%;
+  padding: 14px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #1a0c00;
+  background: linear-gradient(180deg, #ffe066 0%, #e0a000 55%, #b07000 100%);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow:
+    0 4px 0 #7a4d00,
+    0 8px 20px rgba(255, 180, 0, 0.35);
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.contestBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #7a4d00, 0 12px 28px rgba(255, 180, 0, 0.5);
+}
+.contestBtn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #7a4d00, 0 2px 8px rgba(255, 180, 0, 0.3);
+}
+.contestBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 3px 0 #444;
+}
+
+.contestAlready {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #00ff88;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+  margin: 0;
+}
+
+.contestFull {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #ff4444;
+  text-shadow: 0 0 8px rgba(255, 60, 60, 0.4);
+  margin: 0;
+  line-height: 1.8;
+}
+
+.contestWarn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  color: rgba(255, 200, 0, 0.4);
+  margin: 0;
+  line-height: 1.8;
+}
+
+.contestMsg {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  margin: 0;
+  line-height: 1.8;
+}
+.contestMsgOk { color: #00ff88; }
+.contestMsgErr { color: #ff4444; }
+
+.contestRoster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.contestPill {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(255, 200, 0, 0.07);
+  border: 1px solid rgba(255, 200, 0, 0.18);
+  color: rgba(255, 200, 0, 0.6);
+  letter-spacing: 0.04em;
+}
+
+/* ── Your Next Match Banner ── */
+.myMatchBox {
+  border: 1px solid rgba(255, 80, 80, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 40, 0, 0.05);
+  box-shadow: 0 0 24px rgba(255, 60, 0, 0.08);
+  padding: 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.myMatchHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.myMatchIcon {
+  font-size: 16px;
+}
+
+.myMatchLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: rgba(255, 120, 80, 0.7);
+  letter-spacing: 0.1em;
+}
+
+.myMatchVs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.myMatchRound {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.08em;
+}
+
+.myMatchOpponent {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #ff6644;
+  text-shadow: 0 0 16px rgba(255, 80, 40, 0.6);
+  letter-spacing: 0.08em;
+}
+
+.myMatchHint {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 2;
+  margin: 0;
+}
+
+.myMatchBracketBtn {
+  background: none;
+  border: 1px solid rgba(255, 80, 40, 0.25);
+  color: rgba(255, 100, 60, 0.6);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+  align-self: flex-start;
+}
+.myMatchBracketBtn:hover {
+  border-color: rgba(255, 80, 40, 0.5);
+  color: #ff6644;
+}
+
+
+

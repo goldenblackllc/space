@@ -17,6 +17,8 @@ import {
   markBattleViewed,
   markColonizationViewed,
   markReinforcementViewed,
+  startGame,
+  surrenderGame,
 } from '@/lib/firestore';
 import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
 import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord } from '@/lib/types';
@@ -172,6 +174,63 @@ export default function GamePage() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+
+  // ── Challonge auto-report ──────────────────────────────────────────
+  const challongeReportedRef = useRef(false);
+
+  useEffect(() => {
+    const tournamentId = process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID;
+    if (!tournamentId || !game || game.status !== 'ended' || !game.winnerUid) return;
+    if (challongeReportedRef.current) return;
+    challongeReportedRef.current = true;
+
+    const winnerUid = game.winnerUid;
+    const loserUid = game.players.find((uid) => uid !== winnerUid) ?? null;
+    if (!loserUid) return;
+
+    (async () => {
+      try {
+        // 1. Fetch all participants — find by misc === uid (v1 format)
+        const pRes = await fetch(`/api/challonge?path=/tournaments/${tournamentId}/participants.json`);
+        if (!pRes.ok) return;
+        const pJson = await pRes.json();
+        const participants: { id: number; misc?: string }[] =
+          (pJson as { participant: { id: number; misc?: string } }[]).map((p) => p.participant);
+
+        const winnerP = participants.find((p) => p.misc === winnerUid);
+        const loserP  = participants.find((p) => p.misc === loserUid);
+        if (!winnerP || !loserP) return; // neither player is in the tournament
+
+        // 2. Find the open match between these two (v1 format)
+        const mRes = await fetch(`/api/challonge?path=/tournaments/${tournamentId}/matches.json`);
+        if (!mRes.ok) return;
+        const mJson = await mRes.json();
+        const matches: { id: number; state: string; player1_id: number | null; player2_id: number | null }[] =
+          (mJson as { match: { id: number; state: string; player1_id: number | null; player2_id: number | null } }[])
+            .map((m) => m.match);
+
+        const match = matches.find((m) => {
+          return m.state === 'open' && (
+            (m.player1_id === winnerP.id && m.player2_id === loserP.id) ||
+            (m.player1_id === loserP.id  && m.player2_id === winnerP.id)
+          );
+        });
+        if (!match) return; // no open match between them
+
+        // 3. Report the winner (v1 format)
+        await fetch(`/api/challonge?path=/matches/${match.id}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ match: { winner_id: winnerP.id, scores_csv: '1-0' } }),
+        });
+        console.log('[challonge] auto-reported match result');
+      } catch (err) {
+        console.warn('[challonge] auto-report failed:', err);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.status, game?.winnerUid]);
 
   // ── Background Music ──────────────────────────────────────────────────────
   const [musicOn, setMusicOn] = useState(true);
@@ -432,7 +491,11 @@ export default function GamePage() {
   useEffect(() => {
     if (!gameId || !user) return;
     const unsubs = [
-      subscribeGame(gameId, setGame),
+      subscribeGame(gameId, setGame, () => {
+        // Game was deleted (host cleaned it up) — send everyone back to lobby
+        showToast('This sector was deleted by the host.');
+        setTimeout(() => router.replace('/lobby'), 1800);
+      }),
       subscribePlanets(gameId, setPlanets),
       subscribeFleets(gameId, setFleets),
       subscribePlayer(gameId, user.uid, setPlayer),
@@ -1030,6 +1093,67 @@ export default function GamePage() {
         [&lt;] LOBBY
       </button>
 
+      {/* ── Forfeit / Surrender button ── */}
+      {game.status === 'active' && (
+        <button
+          id="surrender-btn"
+          className={styles.surrenderBtn}
+          onClick={() => { soundManager.playBlip(); setShowSurrenderConfirm(true); }}
+        >
+          [⚑] FORFEIT
+        </button>
+      )}
+
+      {/* ── Surrender Confirmation Modal ── */}
+      <AnimatePresence>
+        {showSurrenderConfirm && (
+          <motion.div
+            key="surrender-overlay"
+            className={styles.surrenderOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className={styles.surrenderBox}
+              initial={{ scale: 0.88, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.88, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <h2 className={styles.surrenderTitle}>SURRENDER?</h2>
+              <p className={styles.surrenderSubtitle}>Concede defeat and award victory to your opponent. This cannot be undone.</p>
+              <div className={styles.surrenderActions}>
+                <button
+                  className={styles.surrenderConfirmBtn}
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!user) return;
+                    setBusy(true);
+                    try {
+                      await surrenderGame(gameId, user.uid);
+                    } catch (e) {
+                      showToast(e instanceof Error ? e.message : 'Failed to surrender');
+                      setShowSurrenderConfirm(false);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? 'PROCESSING...' : '[ CONFIRM SURRENDER ]'}
+                </button>
+                <button
+                  className={styles.surrenderCancelBtn}
+                  onClick={() => { soundManager.playBlip(); setShowSurrenderConfirm(false); }}
+                >
+                  [ CANCEL ]
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Error toast ── */}
       <AnimatePresence>
         {errorToast && (
@@ -1067,12 +1191,93 @@ export default function GamePage() {
               >
                 [ RETURN TO LOBBY ]
               </button>
+              {process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID && (
+                <button
+                  className={styles.gameOverBtn}
+                  style={{ marginTop: 12, fontSize: 10, opacity: 0.7 }}
+                  onClick={() => {
+                    soundManager.playBlip();
+                    router.push('/bracket');
+                  }}
+                >
+                  [ VIEW BRACKET ]
+                </button>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* OnMapBattle is now rendered inside .board — see above */}
+
+      {/* ── Lobby Waiting Room Overlay ── */}
+      <AnimatePresence>
+        {game.status === 'lobby' && (
+          <motion.div
+            key="lobby-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.lobbyOverlay}
+          >
+            <div className={styles.lobbyOverlayBox}>
+              <h2 className={styles.lobbyOverlayTitle}>AWAITING COMMANDERS</h2>
+              <p className={styles.lobbyOverlaySector}>SECTOR: <span className={styles.lobbyOverlayCode}>{game.inviteCode}</span></p>
+              <button
+                className={styles.lobbyOverlayCopy}
+                onClick={() => {
+                  navigator.clipboard.writeText(game.inviteCode).then(() => showToast('CODE COPIED!'));
+                }}
+              >
+                [⎘] COPY CODE
+              </button>
+              <div className={styles.lobbyOverlayPlayers}>
+                <span className={styles.lobbyOverlayPlayersLabel}>CONNECTED COMMANDERS</span>
+                {allPlayers.map((p) => (
+                  <div key={p.uid} className={styles.lobbyOverlayPlayer}>
+                    <span className={styles.lobbyOverlayDot} />
+                    {p.name || p.uid.slice(0, 8)}
+                    {p.uid === game.hostUid ? ' [HOST]' : ''}
+                  </div>
+                ))}
+              </div>
+              <button
+                className={styles.lobbyOverlayBack}
+                onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}
+              >
+                [&lt;] BACK TO LOBBY
+              </button>
+
+              {user?.uid === game.hostUid ? (
+                <>
+                  {game.players.length < 2 && (
+                    <p className={styles.lobbyOverlayWait}>Need at least 1 more commander to start.</p>
+                  )}
+                  <button
+                    id="start-game-btn"
+                    className={styles.arcadeBtn}
+                    disabled={busy || game.players.length < 2}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await startGame(gameId, user.uid);
+                      } catch (e) {
+                        showToast(e instanceof Error ? e.message : 'Failed to start');
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {busy ? 'STARTING...' : `LAUNCH SECTOR (${game.players.length}/2+)`}
+                  </button>
+                </>
+              ) : (
+                <p className={styles.lobbyOverlayWait}>Waiting for host to launch the sector…</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

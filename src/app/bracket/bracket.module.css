@@ -1,0 +1,331 @@
+/* ── Bracket Page — Retro Arcade ──────────────────────────────────────────── */
+
+.main {
+  min-height: 100dvh;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background: #06060e;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+  );
+}
+
+.stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.star {
+  position: absolute;
+  width: 1px; height: 1px;
+  background: rgba(232,232,255,0.6);
+  border-radius: 50%;
+  animation: twinkle 5s ease-in-out infinite;
+}
+@keyframes twinkle { 0%,100% { opacity: 0.15; } 50% { opacity: 0.9; } }
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 32px;
+  gap: 12px;
+}
+
+.backBtn, .refreshBtn {
+  background: none;
+  border: 1px solid rgba(0,221,255,0.2);
+  color: rgba(0,221,255,0.5);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.backBtn:hover, .refreshBtn:hover {
+  border-color: rgba(0,221,255,0.5);
+  color: #00ddff;
+}
+
+.title {
+  font-size: 11px;
+  color: #00f5ff;
+  text-shadow: 0 0 14px rgba(0,245,255,0.6);
+  letter-spacing: 0.1em;
+  text-align: center;
+  flex: 1;
+}
+
+/* ── Loading / Error ── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+  padding: 80px 0;
+  font-size: 8px;
+  color: rgba(0,245,255,0.5);
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(0,245,255,0.15);
+  border-top-color: #00f5ff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorBox {
+  font-size: 7px;
+  color: #ff4444;
+  background: rgba(255,0,0,0.08);
+  border: 1px solid rgba(255,0,0,0.2);
+  border-radius: 6px;
+  padding: 16px;
+  line-height: 2;
+  margin-bottom: 16px;
+}
+
+/* ── Tournament Status ── */
+.tourneyStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.statusDot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 8px rgba(0,255,136,0.8);
+  animation: pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+.statusText {
+  font-size: 7px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.08em;
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(0,221,255,0.1);
+  margin-bottom: 24px;
+}
+.tab {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  cursor: pointer;
+  transition: color 0.15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover { color: rgba(0,221,255,0.6); }
+.tabActive {
+  color: #00ddff;
+  border-bottom-color: #00ddff;
+  text-shadow: 0 0 8px rgba(0,221,255,0.5);
+}
+
+/* ── Match Rounds ── */
+.roundsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roundLabel {
+  font-size: 7px;
+  color: rgba(0,221,255,0.35);
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+  border-left: 2px solid rgba(0,221,255,0.2);
+  padding-left: 10px;
+}
+
+/* ── Match Card ── */
+.match {
+  padding: 14px 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+.matchLive {
+  border-color: rgba(0,245,255,0.3);
+  background: rgba(0,20,30,0.6);
+  box-shadow: 0 0 20px rgba(0,200,255,0.08);
+}
+.matchDone {
+  opacity: 0.55;
+}
+.matchPending {
+  opacity: 0.65;
+}
+
+.matchState {
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.stateLive {
+  color: #00f5ff;
+  background: rgba(0,245,255,0.1);
+  border: 1px solid rgba(0,245,255,0.3);
+  animation: liveGlow 1.5s ease-in-out infinite;
+}
+@keyframes liveGlow {
+  0%,100% { box-shadow: 0 0 6px rgba(0,245,255,0.3); }
+  50% { box-shadow: 0 0 14px rgba(0,245,255,0.6); }
+}
+.stateDone {
+  color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.statePending {
+  color: rgba(255,200,0,0.5);
+  background: rgba(255,200,0,0.05);
+  border: 1px solid rgba(255,200,0,0.15);
+}
+
+.matchup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.matchPlayer {
+  font-size: 9px;
+  color: rgba(255,255,255,0.6);
+  flex: 1;
+  min-width: 80px;
+}
+.winner {
+  color: #00ff88;
+  text-shadow: 0 0 8px rgba(0,255,136,0.5);
+}
+.vs {
+  font-size: 7px;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+/* ── Inline Report ── */
+.matchActions {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reportLabel {
+  font-size: 6px;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.06em;
+}
+.reportBtns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.reportBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  background: rgba(0,221,255,0.08);
+  border: 1px solid rgba(0,221,255,0.25);
+  color: rgba(0,221,255,0.8);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.reportBtn:hover:not(:disabled) {
+  background: rgba(0,221,255,0.18);
+  border-color: rgba(0,221,255,0.5);
+  color: #00ddff;
+}
+.reportBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Standings ── */
+.standings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.standingRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.first {
+  border-color: rgba(255,200,0,0.3);
+  background: rgba(255,200,0,0.05);
+}
+.standingRank {
+  font-size: 10px;
+  color: rgba(255,200,0,0.7);
+  width: 32px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.standingName {
+  font-size: 9px;
+  color: rgba(255,255,255,0.8);
+  flex: 1;
+}
+.standingRecord {
+  font-size: 7px;
+  color: rgba(255,255,255,0.3);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .title { font-size: 8px; }
+  .match { padding: 12px; }
+  .matchPlayer { font-size: 8px; }
+}

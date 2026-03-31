@@ -1047,3 +1047,308 @@
   border-color: #ffffff;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
 }
+
+/* ── Lobby Waiting Room Overlay ──────────────────────────────────────────── */
+.lobbyOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(6, 6, 14, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.lobbyOverlayBox {
+  background: rgba(0, 8, 20, 0.92);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  box-shadow: 0 0 40px rgba(0, 180, 255, 0.2), inset 0 0 20px rgba(0, 180, 255, 0.05);
+  border-radius: 8px;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  font-family: 'Press Start 2P', monospace;
+  max-width: 440px;
+  width: 90vw;
+  text-align: center;
+}
+
+.lobbyOverlayTitle {
+  font-size: 14px;
+  color: #00f5ff;
+  text-shadow: 0 0 16px rgba(0, 245, 255, 0.7);
+  letter-spacing: 0.1em;
+  margin: 0;
+  animation: hudCyanPulse 2.4s ease-in-out infinite;
+}
+
+.lobbyOverlaySector {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+
+.lobbyOverlayCode {
+  color: #00f5ff;
+  text-shadow: 0 0 10px rgba(0, 245, 255, 0.8);
+  letter-spacing: 0.2em;
+}
+
+.lobbyOverlayCopy {
+  background: none;
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  color: rgba(0, 200, 255, 0.7);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.15s;
+}
+.lobbyOverlayCopy:hover {
+  background: rgba(0, 200, 255, 0.1);
+  border-color: rgba(0, 200, 255, 0.6);
+  color: #00f5ff;
+}
+
+.lobbyOverlayPlayers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 16px 0;
+}
+
+.lobbyOverlayPlayersLabel {
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.lobbyOverlayPlayer {
+  font-size: 9px;
+  color: #00f5ff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-shadow: 0 0 8px rgba(0, 245, 255, 0.5);
+}
+
+.lobbyOverlayDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.8);
+  flex-shrink: 0;
+  animation: dotPulse 1.8s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.lobbyOverlayWait {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.8;
+  margin: 0;
+}
+
+.lobbyOverlayBack {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+  align-self: flex-start;
+}
+.lobbyOverlayBack:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Reuse lobby's .arcadeBtn style */
+.arcadeBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 14px 28px;
+  background: linear-gradient(180deg, #00e5ff 0%, #0088cc 60%, #005a99 100%);
+  color: #001820;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow:
+    0 5px 0 #003a66,
+    0 8px 24px rgba(0, 200, 255, 0.45);
+  transition: transform 0.1s, box-shadow 0.1s;
+  white-space: nowrap;
+  width: 100%;
+}
+.arcadeBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 #003a66,
+    0 12px 30px rgba(0, 200, 255, 0.6);
+}
+.arcadeBtn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #003a66, 0 2px 8px rgba(0, 200, 255, 0.3);
+}
+.arcadeBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
+/* ── Forfeit / Surrender Button ─────────────────────────────────────────────── */
+@keyframes surrenderGlow {
+  0%, 100% {
+    color: rgba(255, 60, 60, 0.6);
+    text-shadow:
+      0 0 6px  rgba(255, 60, 60, 0.6),
+      0 0 16px rgba(255, 0, 0, 0.3);
+  }
+  50% {
+    color: rgba(255, 100, 80, 0.85);
+    text-shadow:
+      0 0 8px  rgba(255, 80, 80, 0.9),
+      0 0 22px rgba(255, 20, 20, 0.5),
+      0 0 44px rgba(200, 0, 0, 0.25);
+  }
+}
+
+.surrenderBtn {
+  position: fixed;
+  bottom: 60px;
+  right: 24px;
+  z-index: 10;
+  font-size: 7px;
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  animation: surrenderGlow 2.8s ease-in-out infinite;
+  transition: filter 0.15s;
+}
+.surrenderBtn:hover {
+  filter: brightness(1.45);
+}
+
+/* ── Surrender Confirmation Overlay ─────────────────────────────────────────── */
+.surrenderOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(6, 6, 14, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.surrenderBox {
+  background: rgba(20, 0, 0, 0.92);
+  border: 1px solid rgba(255, 40, 40, 0.6);
+  box-shadow: 0 0 36px rgba(255, 0, 0, 0.25), inset 0 0 16px rgba(255, 0, 0, 0.07);
+  border-radius: 8px;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  font-family: 'Press Start 2P', monospace;
+  max-width: 420px;
+  width: 90vw;
+  text-align: center;
+}
+
+.surrenderTitle {
+  font-size: 22px;
+  color: #ff3333;
+  text-shadow: 0 0 14px rgba(255, 0, 0, 0.7);
+  letter-spacing: 0.14em;
+  margin: 0;
+}
+
+.surrenderSubtitle {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 2;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.surrenderActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.surrenderConfirmBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 14px 24px;
+  background: linear-gradient(180deg, #ff4444 0%, #cc0000 55%, #990000 100%);
+  color: #ffe0e0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #600, 0 8px 24px rgba(255, 0, 0, 0.35);
+  transition: transform 0.1s, box-shadow 0.1s, opacity 0.15s;
+  white-space: nowrap;
+}
+.surrenderConfirmBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #600, 0 12px 30px rgba(255, 0, 0, 0.5);
+}
+.surrenderConfirmBtn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #600, 0 2px 8px rgba(255, 0, 0, 0.3);
+}
+.surrenderConfirmBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.surrenderCancelBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  padding: 10px 16px;
+  background: none;
+  color: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.surrenderCancelBtn:hover {
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+
