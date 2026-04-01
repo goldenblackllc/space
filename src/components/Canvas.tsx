@@ -281,11 +281,40 @@ export default function Canvas({
           ctx!.arc(x, y, r + 9, 0, Math.PI * 2);
           ctx!.stroke();
 
-          // Body
+          // Body — off-center radial gradient for 3-D sphere look
           ctx!.setLineDash([]);
-          ctx!.fillStyle = isSelected ? 'rgba(200,200,220,0.35)' : 'rgba(160,160,180,0.18)';
           ctx!.shadowColor = isSelected ? 'rgba(255,255,255,0.3)' : 'transparent';
           ctx!.shadowBlur = isSelected ? 16 : 0;
+          const fogBase = ctx!.createRadialGradient(
+            x - r * 0.35, y - r * 0.35, r * 0.05,
+            x, y, r
+          );
+          fogBase.addColorStop(0,   isSelected ? 'rgba(210,210,230,0.58)' : 'rgba(155,157,180,0.48)');
+          fogBase.addColorStop(0.55, isSelected ? 'rgba(140,142,165,0.40)' : 'rgba(105,107,128,0.34)');
+          fogBase.addColorStop(1,   isSelected ? 'rgba(65,67,88,0.28)'    : 'rgba(40,42,60,0.22)');
+          ctx!.fillStyle = fogBase;
+          ctx!.beginPath();
+          ctx!.arc(x, y, r, 0, Math.PI * 2);
+          ctx!.fill();
+
+          // Limb darkening
+          ctx!.shadowBlur = 0;
+          const fogLimb = ctx!.createRadialGradient(x, y, r * 0.42, x, y, r);
+          fogLimb.addColorStop(0,    'rgba(0,0,0,0)');
+          fogLimb.addColorStop(0.62, 'rgba(0,0,0,0)');
+          fogLimb.addColorStop(1,    'rgba(0,0,0,0.55)');
+          ctx!.fillStyle = fogLimb;
+          ctx!.beginPath();
+          ctx!.arc(x, y, r, 0, Math.PI * 2);
+          ctx!.fill();
+
+          // Specular highlight
+          const fsx = x - r * 0.32, fsy = y - r * 0.32;
+          const fogSpec = ctx!.createRadialGradient(fsx, fsy, 0, fsx, fsy, r * 0.42);
+          fogSpec.addColorStop(0,   'rgba(255,255,255,0.18)');
+          fogSpec.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+          fogSpec.addColorStop(1,   'rgba(255,255,255,0)');
+          ctx!.fillStyle = fogSpec;
           ctx!.beginPath();
           ctx!.arc(x, y, r, 0, Math.PI * 2);
           ctx!.fill();
@@ -308,8 +337,6 @@ export default function Canvas({
         const pulse = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / pulsePeriod));
         const pulseOpacity = shield.opacity * (0.6 + 0.4 * pulse);
         const pulseR = shieldR + pulse * 1.5;
-        const isCapital = planet.isHome && isMyPlanet;
-
         // Pass 1: wide outer glow halo
         ctx!.globalAlpha = pulseOpacity * 0.55;
         ctx!.strokeStyle = shield.color;
@@ -329,34 +356,6 @@ export default function Canvas({
         ctx!.arc(x, y, pulseR, 0, Math.PI * 2);
         ctx!.stroke();
 
-        // ── 1b. Capital Planet double gold ring ───────────────────────
-        if (isCapital) {
-          const goldPulse = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / 2.2));
-          const goldOpacityOuter = 0.55 + 0.35 * goldPulse;
-          const goldOpacityInner = 0.75 + 0.2 * goldPulse;
-
-          // Outer gold ring — wide glow
-          ctx!.globalAlpha = goldOpacityOuter;
-          ctx!.strokeStyle = '#ffd700';
-          ctx!.lineWidth = 2.2;
-          ctx!.shadowColor = '#ffcc00';
-          ctx!.shadowBlur = 16 + goldPulse * 10;
-          ctx!.setLineDash([]);
-          ctx!.beginPath();
-          ctx!.arc(x, y, shieldR + 14 + goldPulse * 1.5, 0, Math.PI * 2);
-          ctx!.stroke();
-
-          // Inner gold ring — tighter, slightly orange-gold
-          ctx!.globalAlpha = goldOpacityInner;
-          ctx!.strokeStyle = '#ffbb22';
-          ctx!.lineWidth = 1.2;
-          ctx!.shadowColor = '#ffaa00';
-          ctx!.shadowBlur = 8 + goldPulse * 5;
-          ctx!.beginPath();
-          ctx!.arc(x, y, shieldR + 7 + goldPulse * 0.8, 0, Math.PI * 2);
-          ctx!.stroke();
-        }
-
         // ── 3. Inner planet (production core) ─────────────────────────
         ctx!.globalAlpha = 1;
         // Spotlight planet: greatly boosted glow using the spotlight colour
@@ -368,12 +367,34 @@ export default function Canvas({
         // Brighter gradient for the spotlight planet — blend base colour
         const bc = isSpotlight ? blendHexToWhite(baseColor, 0.25) : baseColor;
         const grad = ctx!.createRadialGradient(
-          x - prodR * 0.25, y - prodR * 0.3, 0, x, y, prodR
+          x - prodR * 0.38, y - prodR * 0.38, prodR * 0.05, x, y, prodR
         );
         grad.addColorStop(0,    bc);
-        grad.addColorStop(0.65, bc + (isSpotlight ? 'ee' : 'cc'));
-        grad.addColorStop(1,    bc + (isSpotlight ? '88' : '55'));
+        grad.addColorStop(0.55, bc + (isSpotlight ? 'ee' : 'cc'));
+        grad.addColorStop(1,    bc + (isSpotlight ? '88' : '44'));
         ctx!.fillStyle = grad;
+        ctx!.beginPath();
+        ctx!.arc(x, y, prodR, 0, Math.PI * 2);
+        ctx!.fill();
+        ctx!.shadowBlur = 0;
+
+        // ── 3a. Limb darkening ────────────────────────────────────────
+        const limbGrad = ctx!.createRadialGradient(x, y, prodR * 0.45, x, y, prodR);
+        limbGrad.addColorStop(0,   'rgba(0,0,0,0)');
+        limbGrad.addColorStop(0.65,'rgba(0,0,0,0)');
+        limbGrad.addColorStop(1,   'rgba(0,0,0,0.50)');
+        ctx!.fillStyle = limbGrad;
+        ctx!.beginPath();
+        ctx!.arc(x, y, prodR, 0, Math.PI * 2);
+        ctx!.fill();
+
+        // ── 3b. Specular highlight ────────────────────────────────────
+        const specX = x - prodR * 0.32, specY = y - prodR * 0.32;
+        const specGrad = ctx!.createRadialGradient(specX, specY, 0, specX, specY, prodR * 0.42);
+        specGrad.addColorStop(0,   'rgba(255,255,255,0.18)');
+        specGrad.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+        specGrad.addColorStop(1,   'rgba(255,255,255,0)');
+        ctx!.fillStyle = specGrad;
         ctx!.beginPath();
         ctx!.arc(x, y, prodR, 0, Math.PI * 2);
         ctx!.fill();
@@ -433,7 +454,7 @@ export default function Canvas({
 
         // ── 7. Ship count above shield ────────────────────────────────
         const shipLabel = String(planet.ships);
-        const shipY = y - shieldR - 14; // Push up 4px more to clear ring
+        const shipY = y - shieldR - 6; // Tight to the ring edge
         ctx!.font = '9px "Press Start 2P", monospace';
         ctx!.textBaseline = 'bottom';
         // 1px 8-bit outline for the smaller size
@@ -466,13 +487,17 @@ export default function Canvas({
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
+    // On small screens the map is fit-to-viewport so planets are smaller —
+    // boost hit radius to keep tapping comfortable.
+    const hitScale = dims.w <= 768 ? 1.6 : 1.0;
+
     if (onOrderCancel) {
       const cancelHit = pendingOrders.find((order) => {
         const fp = planets.find((p) => p.id === order.fromPlanetId);
         const tp = planets.find((p) => p.id === order.toPlanetId);
         if (!fp || !tp) return false;
         const from = toPixel(fp), to = toPixel(tp);
-        return Math.hypot(mx - (from.x + to.x) / 2, my - (from.y + to.y) / 2) <= 24;
+        return Math.hypot(mx - (from.x + to.x) / 2, my - (from.y + to.y) / 2) <= 24 * hitScale;
       });
       if (cancelHit) { onOrderCancel(cancelHit.id); return; }
     }
@@ -481,7 +506,7 @@ export default function Canvas({
     const hit = planets.find((p) => {
       const { x, y } = toPixel(p);
       const isRevealed = revealedSet.has(p.id) || p.owner === player?.uid;
-      const hitR = isRevealed ? getHitR(p) : FOG_R + 12;
+      const hitR = (isRevealed ? getHitR(p) : FOG_R + 12) * hitScale;
       return Math.hypot(mx - x, my - y) <= hitR;
     });
 
