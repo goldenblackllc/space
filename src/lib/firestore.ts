@@ -32,7 +32,7 @@ function generateInviteCode(length = 5): string {
 export async function createGame(
   hostUid: string,
   playerName: string,
-  planetCount: number = 10,
+  planetCount: number = 20,
   maxPlayers: number = 4
 ): Promise<string> {
   const gameRef = doc(collection(db, 'games'));
@@ -47,6 +47,8 @@ export async function createGame(
     turn: hostUid,
     turnEnded: {},
     hostUid,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
     inviteCode,
     planetCount,
     maxPlayers,

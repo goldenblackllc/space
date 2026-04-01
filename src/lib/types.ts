@@ -38,6 +38,8 @@ export interface Game {
   turn: string;        // UID of the player whose turn it is
   turnEnded: Record<string, boolean>; // UID → has ended turn this year
   hostUid: string;
+  createdAt?: number;  // Unix ms timestamp when game was created
+  updatedAt?: number;  // Unix ms timestamp of last status change
   inviteCode: string;  // Short 5-char code for sharing (e.g. "X7K2M")
   planetCount?: number; // Number of planets in the galaxy (10 or 20)
   maxPlayers?: number;  // Maximum number of players allowed (default: 4)
