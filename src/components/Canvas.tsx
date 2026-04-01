@@ -281,40 +281,29 @@ export default function Canvas({
           ctx!.arc(x, y, r + 9, 0, Math.PI * 2);
           ctx!.stroke();
 
-          // Body — off-center radial gradient for 3-D sphere look
+          // Body — flat diffuse gradient (matte, no hot-spot)
           ctx!.setLineDash([]);
           ctx!.shadowColor = isSelected ? 'rgba(255,255,255,0.3)' : 'transparent';
           ctx!.shadowBlur = isSelected ? 16 : 0;
           const fogBase = ctx!.createRadialGradient(
-            x - r * 0.35, y - r * 0.35, r * 0.05,
+            x - r * 0.2, y - r * 0.2, r * 0.1,
             x, y, r
           );
-          fogBase.addColorStop(0,   isSelected ? 'rgba(210,210,230,0.58)' : 'rgba(155,157,180,0.48)');
-          fogBase.addColorStop(0.55, isSelected ? 'rgba(140,142,165,0.40)' : 'rgba(105,107,128,0.34)');
-          fogBase.addColorStop(1,   isSelected ? 'rgba(65,67,88,0.28)'    : 'rgba(40,42,60,0.22)');
+          fogBase.addColorStop(0,    isSelected ? 'rgba(200,200,215,0.48)' : 'rgba(140,138,152,0.34)');
+          fogBase.addColorStop(0.7,  isSelected ? 'rgba(130,130,148,0.36)' : 'rgba(95,93,108,0.26)');
+          fogBase.addColorStop(1,    isSelected ? 'rgba(60,60,78,0.24)'    : 'rgba(38,36,50,0.16)');
           ctx!.fillStyle = fogBase;
           ctx!.beginPath();
           ctx!.arc(x, y, r, 0, Math.PI * 2);
           ctx!.fill();
 
-          // Limb darkening
+          // Limb darkening only — no specular
           ctx!.shadowBlur = 0;
           const fogLimb = ctx!.createRadialGradient(x, y, r * 0.42, x, y, r);
           fogLimb.addColorStop(0,    'rgba(0,0,0,0)');
           fogLimb.addColorStop(0.62, 'rgba(0,0,0,0)');
           fogLimb.addColorStop(1,    'rgba(0,0,0,0.55)');
           ctx!.fillStyle = fogLimb;
-          ctx!.beginPath();
-          ctx!.arc(x, y, r, 0, Math.PI * 2);
-          ctx!.fill();
-
-          // Specular highlight
-          const fsx = x - r * 0.32, fsy = y - r * 0.32;
-          const fogSpec = ctx!.createRadialGradient(fsx, fsy, 0, fsx, fsy, r * 0.42);
-          fogSpec.addColorStop(0,   'rgba(255,255,255,0.18)');
-          fogSpec.addColorStop(0.5, 'rgba(255,255,255,0.05)');
-          fogSpec.addColorStop(1,   'rgba(255,255,255,0)');
-          ctx!.fillStyle = fogSpec;
           ctx!.beginPath();
           ctx!.arc(x, y, r, 0, Math.PI * 2);
           ctx!.fill();
