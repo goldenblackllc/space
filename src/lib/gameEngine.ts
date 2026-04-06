@@ -60,10 +60,15 @@ export async function assignHomePlanet(
   return chosen.id;
 }
 
+// ─── Ship Cap ────────────────────────────────────────────────────────────────
+
+/** Production never pushes a planet above this. Manual reinforcements can still stack higher. */
+export const SHIP_CAP = 100;
+
 // ─── Travel Time Calculation ──────────────────────────────────────────────────
 
-/** Speed: higher = faster travel. At 10, a cross-map trip takes ~9–14 years */
-const SPEED = 10;
+/** Speed: higher = faster travel. At 6, a cross-map trip takes ~15–19 years */
+const SPEED = 6;
 
 export function calcTravelTime(from: Planet, to: Planet): number {
   const dist = distance(from, to);
@@ -205,11 +210,18 @@ async function advanceTurn(
   }));
 
   // 1. Production phase FIRST — all owned planets produce before any fleet arrives
+  //    Production is capped at SHIP_CAP; manual reinforcements may still exceed it.
   for (const planet of planets) {
     if (planet.owner) {
-      await updateDoc(doc(db, 'games', gameId, 'planets', planet.id), {
-        ships: increment(planet.productionBase ?? 10), // Fallback for older games
-      });
+      const currentShips = planet.ships ?? 0;
+      const production = planet.productionBase ?? 10;
+      const headroom = Math.max(0, SHIP_CAP - currentShips);
+      const actualProduction = Math.min(production, headroom);
+      if (actualProduction > 0) {
+        await updateDoc(doc(db, 'games', gameId, 'planets', planet.id), {
+          ships: increment(actualProduction),
+        });
+      }
     }
   }
 

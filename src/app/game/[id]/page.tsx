@@ -27,10 +27,6 @@ import soundManager from '@/lib/soundManager';
 import AudioManager from '@/components/AudioManager';
 import styles from './game.module.css';
 
-const MODAL_W = 228;
-const MODAL_H = 210;
-const MODAL_OFFSET = 20;
-
 // ── Arcade Event Types ────────────────────────────────────────────────────────
 type ReportType = 'colonize' | 'battle-lost' | 'battle-offensive' | 'battle-defensive' | 'reinforce';
 
@@ -234,25 +230,16 @@ export default function GamePage() {
 
   // ── Background Music ──────────────────────────────────────────────────────
   const [musicOn, setMusicOn] = useState(true);
-
-  // ── Mobile viewport detection (SSR-safe) ─────────────────────────────────
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
   function toggleMusic() {
     soundManager.unlock();
     setMusicOn(!musicOn);
   }
 
   // ── Tap-to-Target State ───────────────────────────────────────────────────
+  const MAX_ORDERS_PER_TURN = 5;
   const [origin, setOrigin] = useState<Planet | null>(null);
   const [target, setTarget] = useState<Planet | null>(null);
-  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
+  const [modalPos, setModalPos] = useState<React.CSSProperties>({});
   const [modalShips, setModalShips] = useState(1);
   const [pendingOrders, setPendingOrders] = useState<FleetOrder[]>([]);
 
@@ -570,12 +557,16 @@ export default function GamePage() {
         .reduce((sum, o) => sum + o.ships, 0);
       const availableForOrigin = (originPlanet?.ships ?? 2) - alreadyQueuedForOrigin;
       setModalShips(Math.max(1, Math.floor(availableForOrigin / 2)));
-      const viewW = window.innerWidth, viewH = window.innerHeight;
-      let mx = px + MODAL_OFFSET, my = py - MODAL_H / 2;
-      if (mx + MODAL_W > viewW - 16) mx = px - MODAL_W - MODAL_OFFSET;
-      if (my < 60) my = 60;
-      if (my + MODAL_H > viewH - 80) my = viewH - MODAL_H - 80;
-      setModalPos({ x: mx, y: my });
+      // Quadrant placement: put the modal in the opposite corner from the planet.
+      const MODAL_INSET = 16;
+      const viewW = boardDims.w || window.innerWidth;
+      const viewH = boardDims.h || window.innerHeight;
+      const inRight  = px >= viewW / 2;
+      const inBottom = py >= viewH / 2;
+      setModalPos({
+        ...(inRight  ? { left:   MODAL_INSET } : { right:  MODAL_INSET }),
+        ...(inBottom ? { top:    (boardDims.padTop || 48) + MODAL_INSET } : { bottom: (boardDims.padBot || 96) + MODAL_INSET }),
+      });
       return;
     }
     if (planet.owner !== user?.uid) { showToast('Select one of your own planets first.'); return; }
@@ -586,6 +577,10 @@ export default function GamePage() {
 
   function confirmOrder() {
     if (!origin || !target || modalShips < 1) return;
+    if (pendingOrders.length >= MAX_ORDERS_PER_TURN) {
+      showToast(`Command limit reached (${MAX_ORDERS_PER_TURN}/turn). End turn to commit.`);
+      return;
+    }
     const originPlanet = localPlanets.find((p) => p.id === origin.id);
     if (!originPlanet) return;
     const alreadyQueued = pendingOrders
@@ -670,8 +665,8 @@ export default function GamePage() {
   const hudHint = origin
     ? (target ? 'Set ships and confirm' : 'Tap destination planet')
     : pendingOrders.length > 0
-    ? `${pendingOrders.length} order${pendingOrders.length !== 1 ? 's' : ''} queued`
-    : 'Tap a planet you own';
+    ? `${pendingOrders.length}/${MAX_ORDERS_PER_TURN} commands queued`
+    : `Tap a planet you own`;
 
   // Active arcade banner to show (one at a time, stacked in center)
   // We show all banners, each dismissed independently
@@ -840,32 +835,21 @@ export default function GamePage() {
             );
           }
 
-          // For colonize and battle-lost:
-          const BANNER_W = 260;
-          const BANNER_H = 164; // Set to actual accurate modal dom height
-          const GAP      = 48; // Standoff distance to clear labels and planet visual
-          const HUD_H    = boardDims.padTop + 4;
-          const evColor  = SPOTLIGHT_COLORS[ev.type] ?? '#ffffff';
-
-          let motionLeft: number | string;
-          let motionTop: number;
-          let tetherDir: 'down' | 'up' | null = null;
-          let tetherOffset: number | string = '50%';
-
-          if (pt && boardDims.w > 0 && !isNaN(pt.x) && !isNaN(pt.y)) {
-            motionLeft = Math.max(8, Math.min(boardDims.w - BANNER_W - 8, pt.x - BANNER_W / 2));
-            tetherOffset = Math.max(16, Math.min(BANNER_W - 16, pt.x - (typeof motionLeft === 'number' ? motionLeft : 0)));
-            const topIfAbove = pt.y - BANNER_H - GAP;
-            if (topIfAbove >= HUD_H) {
-              motionTop = topIfAbove;
-              tetherDir = 'down';
-            } else {
-              motionTop = pt.y + GAP;
-              tetherDir = 'up';
-            }
+          // For colonize, reinforce, and battle-lost banners:
+          // Use quadrant-based placement — opposite corner from the planet.
+          const BANNER_INSET = 16; // px from screen/board edge
+          let bannerStyle: React.CSSProperties;
+          if (pt && boardDims.w > 0) {
+            const inRight  = pt.x >= boardDims.w / 2;
+            const inBottom = pt.y >= boardDims.h / 2;
+            bannerStyle = {
+              position: 'absolute',
+              ...(inRight  ? { left:   BANNER_INSET } : { right:  BANNER_INSET }),
+              ...(inBottom ? { top:    boardDims.padTop + BANNER_INSET } : { bottom: boardDims.padBot + BANNER_INSET }),
+            };
           } else {
-            motionLeft = '50%';
-            motionTop  = 56;
+            // Fallback: top-right
+            bannerStyle = { position: 'absolute', right: BANNER_INSET, top: boardDims.padTop + BANNER_INSET };
           }
 
           return (
@@ -884,10 +868,7 @@ export default function GamePage() {
             >
               <motion.div
                 style={{
-                  position: 'absolute',
-                  left: motionLeft,
-                  top: motionTop,
-                  transform: pt ? 'none' : 'translateX(-50%)',
+                  ...bannerStyle,
                   zIndex: 20,
                   pointerEvents: 'auto',
                 }}
@@ -896,9 +877,6 @@ export default function GamePage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                {tetherDir === 'down' && <div className={styles.tetherDown} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
-                {tetherDir === 'up'   && <div className={styles.tetherUp} style={{ left: tetherOffset, '--tether-color': evColor } as React.CSSProperties} />}
-                
               <div className={`${styles.arcadeBanner} ${
                 ev.type === 'colonize' ? styles.arcadeBannerColonize :
                 ev.type === 'reinforce' ? styles.arcadeBannerReinforce :
@@ -1016,7 +994,7 @@ export default function GamePage() {
           <motion.div
             key="modal"
             className={styles.modal}
-            style={isMobile ? undefined : { left: modalPos.x, top: modalPos.y }}
+            style={modalPos}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
@@ -1038,8 +1016,8 @@ export default function GamePage() {
               onChange={(e) => setModalShips(Number(e.target.value))}
             />
             <div className={styles.modalActions}>
-              <button className={styles.modalConfirm} onClick={() => { soundManager.playBlip(); confirmOrder(); }} disabled={modalShips < 1 || modalShips > maxShips}>
-                Confirm
+              <button className={styles.modalConfirm} onClick={() => { soundManager.playBlip(); confirmOrder(); }} disabled={modalShips < 1 || modalShips > maxShips || pendingOrders.length >= MAX_ORDERS_PER_TURN}>
+                {pendingOrders.length >= MAX_ORDERS_PER_TURN ? 'Limit Reached' : 'Confirm'}
               </button>
               <button className={styles.modalCancel} onClick={() => { soundManager.playBlip(); clearSelection(); }}>Cancel</button>
             </div>
