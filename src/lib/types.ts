@@ -1,5 +1,26 @@
 // ─── Shared TypeScript Types ──────────────────────────────────────────────────
 
+// ─── Team Types ───────────────────────────────────────────────────────────────
+
+/** Pre-defined team colors — visually distinct on dark backgrounds */
+export const TEAM_COLORS = [
+  '#4fc3f7', // sky blue
+  '#ef5350', // coral red
+  '#66bb6a', // green
+  '#ffa726', // amber
+  '#ab47bc', // purple
+  '#26c6da', // cyan
+  '#ff7043', // deep orange
+  '#8d6e63', // brown
+] as const;
+
+export interface TeamConfig {
+  id: string;         // e.g. 'team-1'
+  name: string;       // e.g. 'Alpha Squad'
+  color: string;      // hex color from TEAM_COLORS
+  members: string[];  // UIDs of players on this team
+}
+
 export type GameStatus = 'lobby' | 'active' | 'ended';
 
 export interface Planet {
@@ -28,6 +49,7 @@ export interface Player {
   phone: string;
   homePlanetId: string;
   revealedPlanets: string[]; // Fog of War: planet IDs the player can see
+  teamId?: string;           // Team ID within this game (e.g. 'team-1')
 }
 
 export interface Game {
@@ -41,9 +63,12 @@ export interface Game {
   createdAt?: number;  // Unix ms timestamp when game was created
   updatedAt?: number;  // Unix ms timestamp of last status change
   inviteCode: string;  // Short 5-char code for sharing (e.g. "X7K2M")
-  planetCount?: number; // Number of planets in the galaxy (10 or 20)
+  planetCount?: number; // Number of planets in the galaxy (default 20)
   maxPlayers?: number;  // Maximum number of players allowed (default: 4)
   winnerUid?: string;  // UID of the winner when game ends
+  // ── Team Mode Fields ──
+  teams?: TeamConfig[];         // Team definitions (absent = free-for-all)
+  winnerTeamId?: string;        // Winning team ID when game ends in team mode
 }
 
 export interface CombatPhase {

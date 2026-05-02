@@ -21,7 +21,7 @@ import {
   surrenderGame,
 } from '@/lib/firestore';
 import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
-import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord } from '@/lib/types';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord, TeamConfig } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import soundManager from '@/lib/soundManager';
 import AudioManager from '@/components/AudioManager';
@@ -656,6 +656,19 @@ export default function GamePage() {
   // Turn readiness
   const iHaveEnded = !!(game?.turnEnded?.[user?.uid ?? '']);
 
+  // ── Team Color Map (UID → hex color) ────────────────────────────────────
+  const teamColorMap = useMemo(() => {
+    const teams = game?.teams;
+    if (!teams || teams.length === 0) return undefined;
+    const map: Record<string, string> = {};
+    for (const team of teams) {
+      for (const uid of team.members) {
+        map[uid] = team.color;
+      }
+    }
+    return map;
+  }, [game?.teams]);
+
   // The unviewed battles are now handled directly inside morningReportEvents.
 
   if (!game) return (
@@ -714,6 +727,7 @@ export default function GamePage() {
           pendingOrders={pendingOrders}
           spotlightPlanetId={spotlightPlanetId}
           spotlightColor={spotlightColor}
+          teamColorMap={teamColorMap}
           onPlanetClick={handlePlanetClick}
           onOrderCancel={(id) => setPendingOrders((prev) => prev.filter((o) => o.id !== id))}
           className={styles.canvasWrap}

@@ -66,19 +66,19 @@
 
 .ghostBtn {
   background: transparent;
-  border: 1px solid rgba(0, 221, 255, 0.2);
-  color: rgba(0, 221, 255, 0.5);
+  border: none;
+  color: rgba(0, 221, 255, 0.8);
   padding: 8px 14px;
   border-radius: 4px;
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
   letter-spacing: 0.06em;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 .ghostBtn:hover {
-  border-color: rgba(0, 221, 255, 0.5);
-  color: rgba(0, 221, 255, 0.9);
+  color: #00ddff;
+  text-shadow: 0 0 8px rgba(0, 221, 255, 0.5);
 }
 
 /* ── Content ── */
@@ -98,7 +98,7 @@
 .nameLabel {
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: 0.08em;
 }
 
@@ -112,7 +112,7 @@
 .toggleLabel {
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -162,14 +162,14 @@
   padding: 24px 20px;
   border-radius: 8px;
   background: rgba(0, 221, 255, 0.03);
-  border: 1px solid rgba(0, 221, 255, 0.12);
+  border: 1px solid rgba(0, 221, 255, 0.55);
   display: flex;
   flex-direction: column;
   gap: 14px;
   transition: border-color 0.2s;
 }
 .sector:hover {
-  border-color: rgba(0, 221, 255, 0.25);
+  border-color: #00ddff;
 }
 
 .sectorHeader {
@@ -194,7 +194,7 @@
 .sectorDesc {
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
-  color: rgba(0, 221, 255, 0.35);
+  color: rgba(0, 221, 255, 0.8);
   line-height: 2.4;
   letter-spacing: 0.04em;
 }
@@ -207,18 +207,18 @@
   font-size: 9px;
   color: #e0e0e0;
   background: rgba(0, 221, 255, 0.03);
-  border: 1px solid rgba(0, 221, 255, 0.18);
+  border: 1px solid rgba(0, 221, 255, 0.55);
   border-radius: 4px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   letter-spacing: 0.08em;
 }
 .input:focus {
-  border-color: rgba(0, 221, 255, 0.5);
-  box-shadow: 0 0 14px rgba(0, 221, 255, 0.12);
+  border-color: #00ddff;
+  box-shadow: 0 0 14px rgba(0, 221, 255, 0.2);
 }
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.2);
 }
 
 .joinRow {
@@ -293,7 +293,7 @@
 .stat {
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.08em;
 }
 
@@ -314,7 +314,7 @@
 .myGamesTitle {
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.85);
   letter-spacing: 0.1em;
   margin-bottom: 4px;
 }
@@ -326,11 +326,11 @@
   padding: 10px 14px;
   border-radius: 6px;
   background: rgba(0, 221, 255, 0.03);
-  border: 1px solid rgba(0, 221, 255, 0.1);
+  border: 1px solid rgba(0, 221, 255, 0.22);
   transition: border-color 0.15s;
 }
 .myGame:hover {
-  border-color: rgba(0, 221, 255, 0.25);
+  border-color: rgba(0, 221, 255, 0.45);
 }
 
 .myGameStatus {
@@ -602,21 +602,50 @@
 
 .myMatchBracketBtn {
   background: none;
-  border: 1px solid rgba(255, 80, 40, 0.25);
-  color: rgba(255, 100, 60, 0.6);
+  border: none;
+  color: rgba(255, 100, 60, 0.85);
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
-  padding: 8px 14px;
-  border-radius: 4px;
+  padding: 8px 0;
   cursor: pointer;
   letter-spacing: 0.06em;
-  transition: all 0.15s;
+  transition: color 0.15s, text-shadow 0.15s;
   align-self: flex-start;
 }
 .myMatchBracketBtn:hover {
-  border-color: rgba(255, 80, 40, 0.5);
   color: #ff6644;
+  text-shadow: 0 0 8px rgba(255, 80, 40, 0.5);
 }
 
-
+/* ── Slider Input ── */
+.sliderInput {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 221, 255, 0.15);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.sliderInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #00ddff;
+  border-radius: 2px;
+  border: none;
+  box-shadow: 0 0 8px rgba(0, 221, 255, 0.5);
+  cursor: pointer;
+}
+.sliderInput::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #00ddff;
+  border-radius: 2px;
+  border: none;
+  box-shadow: 0 0 8px rgba(0, 221, 255, 0.5);
+  cursor: pointer;
+}
 

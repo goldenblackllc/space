@@ -210,37 +210,26 @@ export default function OnMapBattle({
   const isDismissing = stage === 'dismissing';
   const isProcessing = subStage === 'processing';
 
-  const BANNER_W = 280;
-  const GAP = 44;
-  
-  let motionLeftNum: number;
-  let motionTop: number | string | undefined = undefined;
-  let motionBottom: number | string | undefined = undefined;
-  let tetherDir: 'up' | 'down' | null = null;
+  const PANEL_INSET = 16; // px from board edge (before HUD/FAB offsets)
 
-  if (cW > 0 && !isNaN(defPt.x)) {
-    motionLeftNum = Math.max(8, Math.min(cW - BANNER_W - 8, defPt.x - BANNER_W / 2));
-    if (!isNaN(defPt.y) && !isNaN(cH) && cH > 0) {
-      if (defPt.y < cH / 2) {
-        motionTop = defPt.y + GAP;
-        tetherDir = 'up';
-      } else {
-        motionBottom = cH - defPt.y + GAP;
-        tetherDir = 'down';
-      }
-    } else {
-      motionTop = '40%';
-    }
+  // ── Quadrant-based placement ─────────────────────────────────────────────
+  // Divide the board into 4 quadrants. Place the panel in the diagonally
+  // opposite quadrant so it never clips any edge, regardless of screen size.
+  // Insets respect the HUD (padTop) and FAB/lobby area (padBot) — same as
+  // the arcade banners — so the panel never slides under the game chrome.
+  let panelStyle: React.CSSProperties;
+  if (cW > 0 && cH > 0 && !isNaN(defPt.x) && !isNaN(defPt.y)) {
+    const inRight  = defPt.x >= cW / 2;
+    const inBottom = defPt.y >= cH / 2;
+    panelStyle = {
+      position: 'absolute',
+      ...(inRight  ? { left:   PANEL_INSET } : { right:  PANEL_INSET }),
+      ...(inBottom ? { top:    boardDims.padTop + PANEL_INSET } : { bottom: boardDims.padBot + PANEL_INSET }),
+    };
   } else {
-    // Fallback: center the panel when boardDims haven't loaded
-    motionLeftNum = 0;
-    motionTop = '40%';
+    // Fallback: top-right corner
+    panelStyle = { position: 'absolute', right: PANEL_INSET, top: boardDims.padTop + PANEL_INSET };
   }
-
-  const motionLeft = cW > 0 ? `${motionLeftNum}px` : '50%';
-  const motionTransform = cW > 0 ? 'translateX(0)' : 'translateX(-50%)';
-  // calculate tether X relative to the modal to point directly at the planet center!
-  const tetherLeft = cW > 0 ? `${Math.max(16, Math.min(BANNER_W - 16, defPt.x - motionLeftNum))}px` : '50%';
 
   const panelColor = stage === 'outcome' ? (iWon ? '#00ff88' : '#ff4444') : '#ffffff';
 
@@ -280,15 +269,10 @@ export default function OnMapBattle({
             stage === 'outcome' && iWon ? styles.battlePanelWon : ''
           }`}
           style={{
-            left: motionLeft,
-            ...(motionTop !== undefined ? { top: motionTop } : {}),
-            ...(motionBottom !== undefined ? { bottom: motionBottom } : {}),
-            transform: motionTransform,
+            ...panelStyle,
             '--panel-color': panelColor,
           } as React.CSSProperties}
         >
-          {tetherDir === 'down' && <div className={styles.tetherDown} style={{ left: tetherLeft, '--tether-color': panelColor } as React.CSSProperties} />}
-          {tetherDir === 'up'   && <div className={styles.tetherUp} style={{ left: tetherLeft, '--tether-color': panelColor } as React.CSSProperties} />}
           
           {/* Briefing Stage */}
           {stage === 'briefing' && (

@@ -73,9 +73,7 @@
   padding-top: 48px;
   padding-bottom: 96px;
   z-index: 1;
-  /* Map panning: allow the inner canvas to overflow and be scrollable */
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 /* ── Action Layer (between map and HUD) ──────────────────────────────────── */
@@ -182,35 +180,7 @@
   }
 }
 
-/* ── Spotlight Tether (arrow pointing FROM modal TOWARD planet) ───────────── */
-/* tetherDown: planet is below the modal — triangle points down               */
-.tetherDown {
-  position: absolute;
-  bottom: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-top: 16px solid var(--tether-color, #00ff88);
-  pointer-events: none;
-  filter: drop-shadow(0 2px 8px var(--tether-color, #00ff88));
-}
-/* tetherUp: planet is above the modal — triangle points up                   */
-.tetherUp {
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-bottom: 16px solid var(--tether-color, #00ff88);
-  pointer-events: none;
-  filter: drop-shadow(0 -2px 8px var(--tether-color, #00ff88));
-}
+
 .arcadeBannerColonize {
   background: rgba(0, 12, 0, 0.94);
   border: 1px solid #00ff88;
@@ -655,32 +625,11 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* ── Canvas Wrapper: Mobile Min-Size for Map Panning ─────────────────────── */
-/* On mobile, enforce a minimum canvas area larger than the viewport so
-   the parent .board (overflow: auto) has content to scroll to.            */
+/* ── Canvas Wrapper ──────────────────────────────────────────────────────── */
+/* Fill the board exactly — no min-size, no scroll. Fit to screen always.   */
 .canvasWrap {
   width: 100%;
   height: 100%;
-}
-@media (max-width: 768px) {
-  .canvasWrap {
-    min-width: 960px;
-    min-height: 700px;
-  }
-}
-
-/* ── Mobile: Force Ship Dispatch Modal to Viewport Center ───────────────── */
-@media (max-width: 768px) {
-  .modal {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 90vw !important;
-    max-width: 400px;
-    margin: 0 !important;
-    z-index: 9999 !important;
-  }
 }
 
 /* ── FAB End Turn (arcade button) ───────────────────────────────────────── */

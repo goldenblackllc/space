@@ -88,35 +88,6 @@
 }
 
 
-/* ── Tethers ───────────────────────────────────────────────────────────── */
-.tetherDown {
-  position: absolute;
-  bottom: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-top: 16px solid var(--tether-color, #ffffff);
-  pointer-events: none;
-  filter: drop-shadow(0 2px 8px var(--tether-color, #ffffff));
-}
-
-.tetherUp {
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-bottom: 16px solid var(--tether-color, #ffffff);
-  pointer-events: none;
-  filter: drop-shadow(0 -2px 8px var(--tether-color, #ffffff));
-}
-
 /* ── Panel Shared Elements ─────────────────────────────────────────────────── */
 .panelTitle {
   font-size: 9px;

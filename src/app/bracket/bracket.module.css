@@ -48,20 +48,19 @@
 
 .backBtn, .refreshBtn {
   background: none;
-  border: 1px solid rgba(0,221,255,0.2);
-  color: rgba(0,221,255,0.5);
+  border: none;
+  color: rgba(0,221,255,0.8);
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
   padding: 8px 12px;
-  border-radius: 4px;
   cursor: pointer;
   letter-spacing: 0.06em;
-  transition: all 0.15s;
+  transition: color 0.15s, text-shadow 0.15s;
   white-space: nowrap;
 }
 .backBtn:hover, .refreshBtn:hover {
-  border-color: rgba(0,221,255,0.5);
   color: #00ddff;
+  text-shadow: 0 0 8px rgba(0,221,255,0.5);
 }
 
 .title {
@@ -121,7 +120,7 @@
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 .statusText {
   font-size: 7px;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.75);
   letter-spacing: 0.08em;
 }
 
@@ -167,10 +166,10 @@
 
 .roundLabel {
   font-size: 7px;
-  color: rgba(0,221,255,0.35);
+  color: rgba(0,221,255,0.8);
   letter-spacing: 0.12em;
   margin-bottom: 4px;
-  border-left: 2px solid rgba(0,221,255,0.2);
+  border-left: 2px solid rgba(0,221,255,0.5);
   padding-left: 10px;
 }
 
@@ -178,7 +177,7 @@
 .match {
   padding: 14px 18px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid rgba(0,221,255,0.25);
   background: rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
@@ -257,7 +256,7 @@
 }
 .reportLabel {
   font-size: 6px;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.7);
   letter-spacing: 0.06em;
 }
 .reportBtns {
@@ -320,7 +319,7 @@
 }
 .standingRecord {
   font-size: 7px;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.65);
   white-space: nowrap;
 }
 

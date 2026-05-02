@@ -233,9 +233,9 @@ export default function BracketPage() {
 
       <div className={styles.container}>
         <header className={styles.header}>
-          <button className={styles.backBtn} onClick={() => router.push('/lobby')}>[&lt;] LOBBY</button>
+          <button className={styles.backBtn} onClick={() => router.push('/lobby')}>[ LOBBY ]</button>
           <span className={styles.title}>{data ? data.tournamentName.toUpperCase() : 'BRACKET'}</span>
-          <button className={styles.refreshBtn} onClick={fetchBracket}>[↻] REFRESH</button>
+          <button className={styles.refreshBtn} onClick={fetchBracket}>[ REFRESH ]</button>
         </header>
 
         {loading && <div className={styles.loading}><div className={styles.spinner} /><span>LOADING BRACKET...</span></div>}

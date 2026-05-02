@@ -21,6 +21,7 @@ interface CanvasProps {
   pendingOrders: FleetOrder[];
   spotlightPlanetId?: string;  // universal highlight for any event
   spotlightColor?: string;     // glow color (e.g. '#00ff88', '#aa44ff', '#ffffff')
+  teamColorMap?: Record<string, string>;  // UID → team hex color (team mode only)
   onPlanetClick: (planet: Planet, pixelX: number, pixelY: number) => void;
   onOrderCancel?: (orderId: string) => void;
   className?: string;
@@ -86,7 +87,7 @@ function getHitR(p: Planet) {
 
 export default function Canvas({
   planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor,
-  onPlanetClick, onOrderCancel, className,
+  teamColorMap, onPlanetClick, onOrderCancel, className,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -116,8 +117,8 @@ export default function Canvas({
   }, []);
 
   // ── Stash latest props in refs so RAF loop sees them without re-creating ──
-  const propsRef = useRef({ planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor });
-  propsRef.current = { planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor };
+  const propsRef = useRef({ planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap });
+  propsRef.current = { planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap };
   const dimsRef = useRef(dims);
   dimsRef.current = dims;
 
@@ -133,7 +134,7 @@ export default function Canvas({
     function draw(time: number) {
       if (!running) return;
       const d = dimsRef.current;
-      const { planets: pl, player: plr, playerTotalShips: totalShips, origin: orig, target: tgt, pendingOrders: orders, spotlightPlanetId: spId, spotlightColor: spColor } = propsRef.current;
+      const { planets: pl, player: plr, playerTotalShips: totalShips, origin: orig, target: tgt, pendingOrders: orders, spotlightPlanetId: spId, spotlightColor: spColor, teamColorMap: tcMap } = propsRef.current;
 
       if (d.w === 0) { rafRef.current = requestAnimationFrame(draw); return; }
 
@@ -319,7 +320,13 @@ export default function Canvas({
         const shipFrac = isMyPlanet && totalShips > 0 ? planet.ships / totalShips : 0;
         const shield = getShield(planet.ships, isMyPlanet ? shipFrac : Math.min(1, planet.ships / 60));
         const shieldR = prodR + shield.extraR;
-        const baseColor = isMyPlanet ? '#e8e8e0' : isOwned ? '#c47070' : '#6e6e80';
+        // Planet base color: team mode uses team colors, otherwise mine/enemy/neutral
+        let baseColor: string;
+        if (tcMap && planet.owner && tcMap[planet.owner]) {
+          baseColor = tcMap[planet.owner]; // Team color
+        } else {
+          baseColor = isMyPlanet ? '#e8e8e0' : isOwned ? '#c47070' : '#6e6e80';
+        }
 
         // ── 1. Neon pixel-glow shield ring (2-pass) ───────────────────
         const pulsePeriod = isTarget ? 0.8 : isMyPlanet ? 3 : 2;

@@ -12,7 +12,7 @@ export default function LobbyPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [playerName, setPlayerName] = useState('');
-  const [planetCount, setPlanetCount] = useState<10 | 20>(10);
+  const [planetCount, setPlanetCount] = useState<number>(20);
   const [gameIdInput, setGameIdInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -220,7 +220,7 @@ export default function LobbyPage() {
         <header className={styles.header}>
           <span className={styles.headerTitle}>LOBBY — COMMAND CENTER</span>
           <button className={styles.ghostBtn} onClick={signOut}>
-            [X] SIGN OUT
+            [ SIGN OUT ]
           </button>
         </header>
 
@@ -261,21 +261,20 @@ export default function LobbyPage() {
               </div>
               <p className={styles.sectorDesc}>&gt; GENERATE A NEW GALAXY<br/>&gt; AND AWAIT COMMANDERS</p>
 
-              {/* Planet count toggle */}
+              {/* Planet count: configurable */}
               <div className={styles.toggleGroup}>
-                <span className={styles.toggleLabel}>PLANETS</span>
-                <div className={styles.toggleRow}>
-                  {([10, 20] as const).map((n) => (
-                    <button
-                      key={n}
-                      className={`${styles.toggleBtn} ${planetCount === n ? styles.toggleBtnActive : ''}`}
-                      onClick={() => setPlanetCount(n)}
-                      type="button"
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
+                <label className={styles.toggleLabel} htmlFor="planet-count-slider">
+                  PLANETS: {planetCount}
+                </label>
+                <input
+                  id="planet-count-slider"
+                  type="range"
+                  min={20}
+                  max={35}
+                  value={planetCount}
+                  onChange={(e) => setPlanetCount(Number(e.target.value) as any)}
+                  className={styles.sliderInput}
+                />
               </div>
 
               <button
@@ -323,7 +322,7 @@ export default function LobbyPage() {
                 className={styles.ghostBtn}
                 onClick={() => router.push('/bracket')}
               >
-                [⚡] BRACKET
+                [ BRACKET ]
               </button>
             )}
           </div>
@@ -350,7 +349,7 @@ export default function LobbyPage() {
                 className={styles.myMatchBracketBtn}
                 onClick={() => router.push('/bracket')}
               >
-                [⚡] VIEW FULL BRACKET
+                [ VIEW BRACKET ]
               </button>
             </div>
           )}

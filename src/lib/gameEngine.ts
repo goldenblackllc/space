@@ -1,7 +1,7 @@
 import { doc, updateDoc, collection, setDoc, getDocs, getDoc, deleteDoc, increment, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 import { applyPendingEventsToOfficialMap } from './firestore';
-import type { Planet, CombatResult, CombatPhase, Fleet, Game } from './types';
+import type { Planet, CombatResult, CombatPhase, Fleet, Game, TeamConfig } from './types';
 
 // ─── Planet Generation ────────────────────────────────────────────────────────
 
@@ -327,7 +327,14 @@ async function advanceTurn(
     await deleteDoc(doc(db, 'games', gameId, 'fleets', fleet.id));
   }
 
-  // 3. Check for game over (one player owns all planets AND no enemy fleets in transit)
+  // 3. Check for game over
+  //    Free-for-all: one player owns ALL planets, no enemy fleets in transit.
+  //    Team mode: all owned planets belong to members of ONE team, no enemy fleets.
+  const gameRef = doc(db, 'games', gameId);
+  const freshGameSnap = await getDoc(gameRef);
+  const freshGame = freshGameSnap.data() as Game;
+  const teams: TeamConfig[] | undefined = freshGame.teams;
+
   const planetOwners = new Set<string>();
   let unownedCount = 0;
   for (const p of planetMap.values()) {
@@ -339,20 +346,55 @@ async function advanceTurn(
   }
 
   let gameOver = false;
-  if (planetOwners.size === 1 && unownedCount === 0) {
-    const winnerUid = Array.from(planetOwners)[0];
-    // Check if any other player still has fleets in transit
-    const remainingFleetsSnap = await getDocs(fleetsRef);
-    const enemyFleets = remainingFleetsSnap.docs.filter(
-      (d) => (d.data() as Fleet).owner !== winnerUid
-    );
-    if (enemyFleets.length === 0) {
-      gameOver = true;
-      await updateDoc(doc(db, 'games', gameId), {
-        currentYear: nextYear,
-        status: 'ended',
-        winnerUid,
-      });
+
+  if (teams && teams.length > 0) {
+    // ── Team Mode ──
+    // All owned planets must belong to members of one team, with no unowned planets
+    if (unownedCount === 0 && planetOwners.size > 0) {
+      const ownerTeams = new Set<string>();
+      for (const uid of planetOwners) {
+        const team = teams.find((t) => t.members.includes(uid));
+        if (team) ownerTeams.add(team.id);
+        else ownerTeams.add(`solo-${uid}`); // shouldn't happen in team mode
+      }
+
+      if (ownerTeams.size === 1) {
+        const winTeamId = Array.from(ownerTeams)[0];
+        // Check no enemy fleets in transit
+        const remainingFleetsSnap = await getDocs(fleetsRef);
+        const winTeam = teams.find((t) => t.id === winTeamId);
+        const winMembers = winTeam?.members ?? [];
+        const enemyFleets = remainingFleetsSnap.docs.filter(
+          (d) => !winMembers.includes((d.data() as Fleet).owner)
+        );
+        if (enemyFleets.length === 0) {
+          gameOver = true;
+          // Winner UID = first member of winning team (for compat), but winnerTeamId is canonical
+          await updateDoc(doc(db, 'games', gameId), {
+            currentYear: nextYear,
+            status: 'ended',
+            winnerTeamId: winTeamId,
+            winnerUid: winMembers[0] ?? null,
+          });
+        }
+      }
+    }
+  } else {
+    // ── Free-for-all Mode ──
+    if (planetOwners.size === 1 && unownedCount === 0) {
+      const winnerUid = Array.from(planetOwners)[0];
+      const remainingFleetsSnap = await getDocs(fleetsRef);
+      const enemyFleets = remainingFleetsSnap.docs.filter(
+        (d) => (d.data() as Fleet).owner !== winnerUid
+      );
+      if (enemyFleets.length === 0) {
+        gameOver = true;
+        await updateDoc(doc(db, 'games', gameId), {
+          currentYear: nextYear,
+          status: 'ended',
+          winnerUid,
+        });
+      }
     }
   }
 

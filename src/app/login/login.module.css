@@ -96,7 +96,7 @@
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
   letter-spacing: 0.1em;
-  color: rgba(0, 221, 255, 0.6);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .input {
@@ -106,18 +106,18 @@
   font-size: 11px;
   color: #e0e0e0;
   background: rgba(0, 221, 255, 0.04);
-  border: 1px solid rgba(0, 221, 255, 0.2);
+  border: 1px solid rgba(0, 221, 255, 0.55);
   border-radius: 6px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   letter-spacing: 0.12em;
 }
 .input:focus {
-  border-color: rgba(0, 221, 255, 0.5);
-  box-shadow: 0 0 16px rgba(0, 221, 255, 0.15);
+  border-color: #00ddff;
+  box-shadow: 0 0 16px rgba(0, 221, 255, 0.2);
 }
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.2);
 }
 
 /* ── Arcade button ── */
@@ -165,19 +165,19 @@
 /* ── Ghost / back button ── */
 .ghostBtn {
   background: transparent;
-  border: 1px solid rgba(0, 221, 255, 0.2);
-  color: rgba(0, 221, 255, 0.6);
+  border: none;
+  color: rgba(0, 221, 255, 0.8);
   padding: 12px;
   border-radius: 6px;
   font-family: 'Press Start 2P', monospace;
   font-size: 7px;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: color 0.15s, text-shadow 0.15s;
 }
 .ghostBtn:hover {
-  border-color: rgba(0, 221, 255, 0.5);
-  color: rgba(0, 221, 255, 0.9);
+  color: #00ddff;
+  text-shadow: 0 0 8px rgba(0, 221, 255, 0.5);
 }
 
 /* ── Error ── */
@@ -196,6 +196,6 @@
 .hint {
   font-family: 'Press Start 2P', monospace;
   font-size: 6px;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.38);
   letter-spacing: 0.06em;
 }

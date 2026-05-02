@@ -171,7 +171,7 @@ export default function LoginPage() {
                 className={styles.ghostBtn}
                 onClick={() => { setStep('phone'); setOtp(''); setError(''); }}
               >
-                [&lt;] CHANGE ID
+                [ CHANGE ID ]
               </button>
             </motion.form>
           )}
