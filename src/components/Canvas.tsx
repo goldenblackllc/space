@@ -22,6 +22,7 @@ interface CanvasProps {
   spotlightPlanetId?: string;  // universal highlight for any event
   spotlightColor?: string;     // glow color (e.g. '#00ff88', '#aa44ff', '#ffffff')
   teamColorMap?: Record<string, string>;  // UID → team hex color (team mode only)
+  spectatorMode?: boolean;     // true = no fog, no click, all planets revealed
   onPlanetClick: (planet: Planet, pixelX: number, pixelY: number) => void;
   onOrderCancel?: (orderId: string) => void;
   className?: string;
@@ -87,7 +88,7 @@ function getHitR(p: Planet) {
 
 export default function Canvas({
   planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor,
-  teamColorMap, onPlanetClick, onOrderCancel, className,
+  teamColorMap, spectatorMode, onPlanetClick, onOrderCancel, className,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -117,8 +118,8 @@ export default function Canvas({
   }, []);
 
   // ── Stash latest props in refs so RAF loop sees them without re-creating ──
-  const propsRef = useRef({ planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap });
-  propsRef.current = { planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap };
+  const propsRef = useRef({ planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap, spectatorMode });
+  propsRef.current = { planets, player, playerTotalShips, origin, target, pendingOrders, spotlightPlanetId, spotlightColor, teamColorMap, spectatorMode };
   const dimsRef = useRef(dims);
   dimsRef.current = dims;
 
@@ -134,7 +135,7 @@ export default function Canvas({
     function draw(time: number) {
       if (!running) return;
       const d = dimsRef.current;
-      const { planets: pl, player: plr, playerTotalShips: totalShips, origin: orig, target: tgt, pendingOrders: orders, spotlightPlanetId: spId, spotlightColor: spColor, teamColorMap: tcMap } = propsRef.current;
+      const { planets: pl, player: plr, playerTotalShips: totalShips, origin: orig, target: tgt, pendingOrders: orders, spotlightPlanetId: spId, spotlightColor: spColor, teamColorMap: tcMap, spectatorMode: isSpec } = propsRef.current;
 
       if (d.w === 0) { rafRef.current = requestAnimationFrame(draw); return; }
 
@@ -154,6 +155,7 @@ export default function Canvas({
       const toP = (p: Planet) => ({ x: (p.x / 100) * d.w, y: (p.y / 100) * d.h });
 
       // ── Queued order lines ─────────────────────────────────────────────
+      if (!isSpec) { // Spectators don't see pending orders
       orders.forEach((order, i) => {
         const fp = pl.find((p) => p.id === order.fromPlanetId);
         const tp = pl.find((p) => p.id === order.toPlanetId);
@@ -195,6 +197,7 @@ export default function Canvas({
         ctx!.fillText(label, mx, my);
         ctx!.restore();
       });
+      } // end !isSpec
 
       // ── Preview line ──────────────────────────────────────────────────
       if (orig && tgt) {
@@ -214,8 +217,8 @@ export default function Canvas({
       // ── Planets ───────────────────────────────────────────────────────
       for (const planet of pl) {
         const { x, y } = toP(planet);
-        const isMyPlanet = planet.owner === plr?.uid;
-        const isRevealed = isMyPlanet; // Strict: only show interiors of planets currently owned by the user
+        const isMyPlanet = isSpec ? false : planet.owner === plr?.uid;
+        const isRevealed = isSpec ? true : isMyPlanet; // Spectator sees everything
         const isOwned = !!planet.owner;
         const isOrigin = orig?.id === planet.id;
         const isTarget = tgt?.id === planet.id;
@@ -442,7 +445,7 @@ export default function Canvas({
         ctx!.shadowBlur = 3;
         ctx!.shadowOffsetY = 1;
         ctx!.fillStyle = isMyPlanet ? '#06060e' : '#ffffff';
-        if (isMyPlanet) {
+        if (isMyPlanet || (isSpec && isOwned)) {
           ctx!.fillText(String(planet.productionBase ?? 0), x, y);
         }
         ctx!.shadowBlur = 0;
@@ -478,7 +481,7 @@ export default function Canvas({
 
   // ── Click ───────────────────────────────────────────────────────────────
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (dims.w === 0) return;
+    if (dims.w === 0 || spectatorMode) return; // Spectators can't click
     const rect = canvasRef.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;

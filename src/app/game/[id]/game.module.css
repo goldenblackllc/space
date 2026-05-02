@@ -1300,4 +1300,56 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+/* ── Team Mode (Lobby) ──────────────────────────────────────────────────────── */
+.teamToggle {
+  display: flex;
+  justify-content: center;
+}
 
+.teamToggleBtn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.35);
+}
+.teamToggleBtn:hover {
+  border-color: rgba(0, 200, 255, 0.4);
+  color: rgba(0, 200, 255, 0.7);
+}
+.teamToggleBtnActive {
+  background: rgba(0, 200, 255, 0.1);
+  border-color: rgba(0, 200, 255, 0.5);
+  color: #00f5ff;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
+}
+
+.lobbyOverlayTeamDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+  transition: background 0.2s;
+}
+
+.lobbyOverlayTeamLabel {
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  margin-left: auto;
+  opacity: 0.8;
+  transition: color 0.2s;
+}
+
+.lobbyOverlayHint {
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+  font-style: normal;
+}

@@ -22,6 +22,7 @@ import {
 } from '@/lib/firestore';
 import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
 import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord, TeamConfig } from '@/lib/types';
+import { TEAM_COLORS } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import soundManager from '@/lib/soundManager';
 import AudioManager from '@/components/AudioManager';
@@ -253,6 +254,38 @@ export default function GamePage() {
 
   // Local optimistic dismissal state
   const [localDismissed, setLocalDismissed] = useState<string[]>([]);
+
+  // ── Team Mode (Lobby only) ────────────────────────────────────────────────
+  const [teamModeEnabled, setTeamModeEnabled] = useState(false);
+  // Map of UID → team index (0, 1, 2, ...)
+  const [teamAssignments, setTeamAssignments] = useState<Record<string, number>>({});
+  const TEAM_NAMES = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
+
+  function cycleTeam(uid: string, numTeams: number) {
+    setTeamAssignments((prev) => {
+      const current = prev[uid] ?? 0;
+      return { ...prev, [uid]: (current + 1) % numTeams };
+    });
+  }
+
+  function buildTeamConfigs(): TeamConfig[] {
+    const teamMap = new Map<number, string[]>();
+    for (const uid of game?.players ?? []) {
+      const idx = teamAssignments[uid] ?? 0;
+      if (!teamMap.has(idx)) teamMap.set(idx, []);
+      teamMap.get(idx)!.push(uid);
+    }
+    const configs: TeamConfig[] = [];
+    for (const [idx, members] of teamMap) {
+      configs.push({
+        id: `team-${idx}`,
+        name: `Team ${TEAM_NAMES[idx] ?? idx}`,
+        color: TEAM_COLORS[idx % TEAM_COLORS.length],
+        members,
+      });
+    }
+    return configs;
+  }
 
   // ── Derived Local Planets ─────────────────────────────────────────────────
   // Start from official Firestore planets (post-production, no battle results).
@@ -1223,16 +1256,77 @@ export default function GamePage() {
               >
                 [⎘] COPY CODE
               </button>
+
+              {/* ── Team Mode Toggle (host only) ── */}
+              {user?.uid === game.hostUid && (
+                <div className={styles.teamToggle}>
+                  <button
+                    className={`${styles.teamToggleBtn} ${teamModeEnabled ? styles.teamToggleBtnActive : ''}`}
+                    onClick={() => setTeamModeEnabled(!teamModeEnabled)}
+                  >
+                    {teamModeEnabled ? '✓ TEAM MODE' : 'ENABLE TEAMS'}
+                  </button>
+                </div>
+              )}
+
               <div className={styles.lobbyOverlayPlayers}>
-                <span className={styles.lobbyOverlayPlayersLabel}>CONNECTED COMMANDERS</span>
-                {allPlayers.map((p) => (
-                  <div key={p.uid} className={styles.lobbyOverlayPlayer}>
-                    <span className={styles.lobbyOverlayDot} />
-                    {p.name || p.uid.slice(0, 8)}
-                    {p.uid === game.hostUid ? ' [HOST]' : ''}
-                  </div>
-                ))}
+                <span className={styles.lobbyOverlayPlayersLabel}>
+                  {teamModeEnabled ? 'TEAM ASSIGNMENTS' : 'CONNECTED COMMANDERS'}
+                </span>
+                {allPlayers.map((p) => {
+                  const teamIdx = teamAssignments[p.uid] ?? 0;
+                  const teamColor = TEAM_COLORS[teamIdx % TEAM_COLORS.length];
+                  const numTeams = Math.max(2, Math.min(Math.ceil(allPlayers.length / 2), 6));
+                  return (
+                    <div
+                      key={p.uid}
+                      className={styles.lobbyOverlayPlayer}
+                      onClick={() => {
+                        if (teamModeEnabled && user?.uid === game.hostUid) {
+                          cycleTeam(p.uid, numTeams);
+                        }
+                      }}
+                      style={{
+                        cursor: teamModeEnabled && user?.uid === game.hostUid ? 'pointer' : 'default',
+                      }}
+                    >
+                      {teamModeEnabled ? (
+                        <span
+                          className={styles.lobbyOverlayTeamDot}
+                          style={{ background: teamColor }}
+                        />
+                      ) : (
+                        <span className={styles.lobbyOverlayDot} />
+                      )}
+                      {p.name || p.uid.slice(0, 8)}
+                      {p.uid === game.hostUid ? ' [HOST]' : ''}
+                      {teamModeEnabled && (
+                        <span
+                          className={styles.lobbyOverlayTeamLabel}
+                          style={{ color: teamColor }}
+                        >
+                          {TEAM_NAMES[teamIdx] ?? `T${teamIdx}`}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {teamModeEnabled && user?.uid === game.hostUid && (
+                  <span className={styles.lobbyOverlayHint}>Tap a player to change their team</span>
+                )}
               </div>
+
+              {/* ── Spectate Link ── */}
+              <button
+                className={styles.lobbyOverlayCopy}
+                onClick={() => {
+                  const url = `${window.location.origin}/game/${gameId}/spectate`;
+                  navigator.clipboard.writeText(url).then(() => showToast('SPECTATOR LINK COPIED!'));
+                }}
+              >
+                [◎] COPY SPECTATOR LINK
+              </button>
+
               <button
                 className={styles.lobbyOverlayBack}
                 onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}
@@ -1252,7 +1346,8 @@ export default function GamePage() {
                     onClick={async () => {
                       setBusy(true);
                       try {
-                        await startGame(gameId, user.uid);
+                        const teams = teamModeEnabled ? buildTeamConfigs() : undefined;
+                        await startGame(gameId, user.uid, teams);
                       } catch (e) {
                         showToast(e instanceof Error ? e.message : 'Failed to start');
                       } finally {

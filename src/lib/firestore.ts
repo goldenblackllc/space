@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { generatePlanets, assignHomePlanet } from './gameEngine';
-import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord } from './types';
+import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord, TeamConfig } from './types';
 
 // ─── Invite Code Helper ───────────────────────────────────────────────────────
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
@@ -80,8 +80,13 @@ export async function createGame(
 /**
  * Host-only: start the game. Requires at least 2 players.
  * Transitions status from 'lobby' → 'active'.
+ * If teams are provided, saves them to the game doc and updates player teamIds.
  */
-export async function startGame(gameId: string, hostUid: string): Promise<void> {
+export async function startGame(
+  gameId: string,
+  hostUid: string,
+  teams?: TeamConfig[]
+): Promise<void> {
   const gameRef = doc(db, 'games', gameId);
   const gameSnap = await getDoc(gameRef);
   if (!gameSnap.exists()) throw new Error('Game not found');
@@ -91,7 +96,20 @@ export async function startGame(gameId: string, hostUid: string): Promise<void> 
   if (game.status !== 'lobby') throw new Error('Game has already started');
   if (game.players.length < 2) throw new Error('Need at least 2 players to start');
 
-  await updateDoc(gameRef, { status: 'active' });
+  const updates: Record<string, unknown> = { status: 'active' };
+  if (teams && teams.length > 0) {
+    updates.teams = teams;
+  }
+  await updateDoc(gameRef, updates);
+
+  // Update each player's teamId
+  if (teams && teams.length > 0) {
+    for (const team of teams) {
+      for (const uid of team.members) {
+        await updateDoc(doc(db, 'games', gameId, 'players', uid), { teamId: team.id });
+      }
+    }
+  }
 }
 
 export async function joinGame(input: string, uid: string, playerName: string = ''): Promise<string> {
