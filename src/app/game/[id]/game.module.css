@@ -375,6 +375,36 @@
   padding-left: 12px;
 }
 
+/* Right-side HUD container (timer + hint) */
+.hudRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Turn timer countdown */
+.hudTimer {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #00f5ff;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 8px rgba(0, 245, 255, 0.5);
+  white-space: nowrap;
+}
+
+.hudTimerExpired {
+  color: #ff4444;
+  text-shadow: 0 0 8px rgba(255, 68, 68, 0.7);
+  animation: timerPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* ── Music Toggle Button ─────────────────────────────────────────────────── */
 .musicToggle {
   margin-left: 16px;

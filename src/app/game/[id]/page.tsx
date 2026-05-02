@@ -20,7 +20,8 @@ import {
   startGame,
   surrenderGame,
 } from '@/lib/firestore';
-import { dispatchFleet, endPlayerTurn } from '@/lib/gameEngine';
+import { dispatchFleet, endPlayerTurn, autoEndExpiredTurns } from '@/lib/gameEngine';
+import { getTurnTimerInfo, getTurnTimerLabel, type TurnTimerInfo } from '@/lib/turnTimer';
 import type { Game, Planet, Fleet, Player, BattleRecord, ColonizationRecord, ReinforcementRecord, TeamConfig } from '@/lib/types';
 import { TEAM_COLORS } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -172,6 +173,45 @@ export default function GamePage() {
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+
+  // ── Turn Timer ────────────────────────────────────────────────────────────
+  const [timerInfo, setTimerInfo] = useState<TurnTimerInfo | null>(null);
+  const autoEndTriggeredRef = useRef(false);
+
+  // Tick the countdown every second
+  useEffect(() => {
+    if (!game || game.status !== 'active' || !game.turnTimerEnabled) {
+      setTimerInfo(null);
+      return;
+    }
+
+    function tick() {
+      const info = getTurnTimerInfo(
+        game!.turnTimerEnabled,
+        game!.gameStartedAt,
+        game!.turnStartedAt
+      );
+      setTimerInfo(info);
+    }
+
+    tick(); // immediate
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [game?.turnTimerEnabled, game?.gameStartedAt, game?.turnStartedAt, game?.status]);
+
+  // Auto-end expired turns when detected
+  useEffect(() => {
+    if (!timerInfo?.expired || !game || game.status !== 'active') return;
+    if (autoEndTriggeredRef.current) return;
+    autoEndTriggeredRef.current = true;
+
+    autoEndExpiredTurns(gameId).catch(console.error);
+  }, [timerInfo?.expired, game?.status, gameId]);
+
+  // Reset the auto-end trigger when the turn advances
+  useEffect(() => {
+    autoEndTriggeredRef.current = false;
+  }, [game?.currentYear]);
 
   // ── Challonge auto-report ──────────────────────────────────────────
   const challongeReportedRef = useRef(false);
@@ -1007,7 +1047,6 @@ export default function GamePage() {
             [ MUSIC: {musicOn ? 'ON' : 'OFF'} ]
           </button>
         </div>
-        {/* Row 2: stats (left) + hint (right, hidden on mobile) */}
         <div className={styles.hudRow2}>
           <div className={styles.hudStats}>
             <div className={styles.hudStat}>
@@ -1031,7 +1070,16 @@ export default function GamePage() {
               <span className={styles.hudStatValue}>{inTransit}</span>
             </div>
           </div>
-          <span className={styles.hudHint}>{hudHint}</span>
+          <div className={styles.hudRight}>
+            {timerInfo && (
+              <span
+                className={`${styles.hudTimer} ${timerInfo.expired ? styles.hudTimerExpired : ''}`}
+              >
+                {getTurnTimerLabel(timerInfo)}
+              </span>
+            )}
+            <span className={styles.hudHint}>{hudHint}</span>
+          </div>
         </div>
       </header>
 
@@ -1198,37 +1246,57 @@ export default function GamePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <div className={`${styles.gameOverBox} ${game.winnerUid === user?.uid ? styles.gameOverBoxWon : ''}`}>
-              <h1 className={`${styles.gameOverTitle} ${game.winnerUid === user?.uid ? styles.gameOverTitleWon : ''}`}>
-                {game.winnerUid === user?.uid ? 'YOU WIN!' : `${playerLabels[game.winnerUid ?? ''] ?? 'PLAYER'} WINS!`}
-              </h1>
-              <p className={styles.gameOverSubtitle}>
-                {game.winnerUid === user?.uid 
-                  ? 'GALAXY SECURED UNDER YOUR COMMAND' 
-                  : 'GALAXY LOST TO ENEMY FORCES'}
-              </p>
-              <button 
-                className={styles.gameOverBtn}
-                onClick={() => {
-                  soundManager.playBlip();
-                  router.push('/lobby');
-                }}
-              >
-                [ RETURN TO LOBBY ]
-              </button>
-              {process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID && (
-                <button
-                  className={styles.gameOverBtn}
-                  style={{ marginTop: 12, fontSize: 10, opacity: 0.7 }}
-                  onClick={() => {
-                    soundManager.playBlip();
-                    router.push('/bracket');
-                  }}
-                >
-                  [ VIEW BRACKET ]
-                </button>
-              )}
-            </div>
+            {(() => {
+              // Determine if the current user is on the winning side
+              const myTeam = game.teams?.find((t) => t.members.includes(user?.uid ?? ''));
+              const isTeamWin = !!game.winnerTeamId && !!game.teams;
+              const winnerTeam = game.teams?.find((t) => t.id === game.winnerTeamId);
+              const iWon = isTeamWin
+                ? myTeam?.id === game.winnerTeamId
+                : game.winnerUid === user?.uid;
+
+              const winnerName = isTeamWin
+                ? winnerTeam?.name ?? 'UNKNOWN TEAM'
+                : playerLabels[game.winnerUid ?? ''] ?? 'PLAYER';
+
+              return (
+                <div className={`${styles.gameOverBox} ${iWon ? styles.gameOverBoxWon : ''}`}>
+                  <h1 className={`${styles.gameOverTitle} ${iWon ? styles.gameOverTitleWon : ''}`}>
+                    {iWon ? 'VICTORY!' : `${winnerName} WINS!`}
+                  </h1>
+                  <p className={styles.gameOverSubtitle}>
+                    {isTeamWin
+                      ? iWon
+                        ? `${winnerName} HAS CONQUERED THE GALAXY`
+                        : `${winnerName} HAS CONQUERED THE GALAXY`
+                      : iWon
+                        ? 'GALAXY SECURED UNDER YOUR COMMAND'
+                        : 'GALAXY LOST TO ENEMY FORCES'}
+                  </p>
+                  <button
+                    className={styles.gameOverBtn}
+                    onClick={() => {
+                      soundManager.playBlip();
+                      router.push('/lobby');
+                    }}
+                  >
+                    [ RETURN TO LOBBY ]
+                  </button>
+                  {process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID && (
+                    <button
+                      className={styles.gameOverBtn}
+                      style={{ marginTop: 12, fontSize: 10, opacity: 0.7 }}
+                      onClick={() => {
+                        soundManager.playBlip();
+                        router.push('/bracket');
+                      }}
+                    >
+                      [ VIEW BRACKET ]
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>

@@ -96,7 +96,13 @@ export async function startGame(
   if (game.status !== 'lobby') throw new Error('Game has already started');
   if (game.players.length < 2) throw new Error('Need at least 2 players to start');
 
-  const updates: Record<string, unknown> = { status: 'active' };
+  const now = Date.now();
+  const updates: Record<string, unknown> = {
+    status: 'active',
+    gameStartedAt: now,
+    turnStartedAt: now,
+    turnTimerEnabled: true, // All games get a turn timer now
+  };
   if (teams && teams.length > 0) {
     updates.teams = teams;
   }

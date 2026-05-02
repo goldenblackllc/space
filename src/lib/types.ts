@@ -69,6 +69,10 @@ export interface Game {
   // ── Team Mode Fields ──
   teams?: TeamConfig[];         // Team definitions (absent = free-for-all)
   winnerTeamId?: string;        // Winning team ID when game ends in team mode
+  // ── Turn Timer Fields ──
+  turnTimerEnabled?: boolean;   // true = escalating turn timer is active
+  gameStartedAt?: number;       // Unix ms when game transitioned to 'active'
+  turnStartedAt?: number;       // Unix ms when the current turn (year) began
 }
 
 export interface CombatPhase {

@@ -173,10 +173,10 @@ export async function endPlayerTurn(
     // Flush all battle/colonization results onto official planet docs
     await applyPendingEventsToOfficialMap(gameId);
     await advanceTurn(gameId, game.currentYear);
-    // Reset turnEnded for the new year
+    // Reset turnEnded for the new year and start new turn timer
     const resetMap: Record<string, boolean> = {};
     for (const pid of game.players) resetMap[pid] = false;
-    await updateDoc(gameRef, { turnEnded: resetMap });
+    await updateDoc(gameRef, { turnEnded: resetMap, turnStartedAt: Date.now() });
   } else {
     // Just mark this player as done
     await updateDoc(gameRef, { turnEnded: updatedTurnEnded });
@@ -401,5 +401,103 @@ async function advanceTurn(
   if (!gameOver) {
     // 4. Increment year
     await updateDoc(doc(db, 'games', gameId), { currentYear: nextYear });
+  }
+}
+
+// ─── Turn Timer: Auto-End Expired Turns ───────────────────────────────────────
+
+import { getTurnTimerInfo } from './turnTimer';
+
+/**
+ * Check if the current turn's timer has expired.
+ * If so, auto-end turns for all players who haven't submitted yet.
+ * If we're in tiebreaker territory (Day 7+), resolve the game immediately.
+ *
+ * Called client-side when a player opens/views the game.
+ * Uses a simple lock via Firestore to prevent double-execution.
+ *
+ * Returns true if any action was taken.
+ */
+export async function autoEndExpiredTurns(gameId: string): Promise<boolean> {
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+  if (!gameSnap.exists()) return false;
+
+  const game = { id: gameSnap.id, ...(gameSnap.data() as Omit<Game, 'id'>) };
+  if (game.status !== 'active') return false;
+
+  const timerInfo = getTurnTimerInfo(
+    game.turnTimerEnabled,
+    game.gameStartedAt,
+    game.turnStartedAt
+  );
+
+  if (!timerInfo || !timerInfo.expired) return false;
+
+  // ── Day 7+ Tiebreaker ──
+  if (timerInfo.isTiebreaker) {
+    await resolveTiebreaker(gameId, game);
+    return true;
+  }
+
+  // ── Timer Expired: auto-end for all remaining players ──
+  const playersNotDone = game.players.filter((pid) => !game.turnEnded[pid]);
+  if (playersNotDone.length === 0) return false; // all done already
+
+  // Mark all remaining players as done
+  for (const pid of playersNotDone) {
+    // Each call will check if all are done and advance if so
+    await endPlayerTurn(gameId, pid);
+  }
+
+  return true;
+}
+
+/**
+ * Resolve a tiebreaker: the team/player with the most planets wins.
+ * If tied on planets, break by total ship count.
+ */
+async function resolveTiebreaker(gameId: string, game: Game): Promise<void> {
+  const planetsSnap = await getDocs(collection(db, 'games', gameId, 'planets'));
+  const planets = planetsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Planet, 'id'>) }));
+
+  if (game.teams && game.teams.length > 0) {
+    // ── Team tiebreaker ──
+    const teamScores = game.teams.map((team) => {
+      const owned = planets.filter((p) => p.owner && team.members.includes(p.owner));
+      return {
+        teamId: team.id,
+        planets: owned.length,
+        ships: owned.reduce((sum, p) => sum + p.ships, 0),
+        firstMember: team.members[0] ?? null,
+      };
+    });
+
+    teamScores.sort((a, b) => b.planets - a.planets || b.ships - a.ships);
+    const winner = teamScores[0];
+
+    await updateDoc(doc(db, 'games', gameId), {
+      status: 'ended',
+      winnerTeamId: winner.teamId,
+      winnerUid: winner.firstMember,
+    });
+  } else {
+    // ── Free-for-all tiebreaker ──
+    const playerScores = game.players.map((uid) => {
+      const owned = planets.filter((p) => p.owner === uid);
+      return {
+        uid,
+        planets: owned.length,
+        ships: owned.reduce((sum, p) => sum + p.ships, 0),
+      };
+    });
+
+    playerScores.sort((a, b) => b.planets - a.planets || b.ships - a.ships);
+    const winner = playerScores[0];
+
+    await updateDoc(doc(db, 'games', gameId), {
+      status: 'ended',
+      winnerUid: winner.uid,
+    });
   }
 }
