@@ -219,8 +219,8 @@ export default function LobbyPage() {
         {/* Header */}
         <header className={styles.header}>
           <span className={styles.headerTitle}>LOBBY — COMMAND CENTER</span>
-          <button className={styles.ghostBtn} onClick={signOut}>
-            [ SIGN OUT ]
+          <button className="arcade-btn arcade-btn-muted arcade-btn-sm" onClick={signOut}>
+            SIGN OUT
           </button>
         </header>
 
@@ -279,7 +279,7 @@ export default function LobbyPage() {
 
               <button
                 id="create-game-btn"
-                className={styles.arcadeBtn}
+                className="arcade-btn arcade-btn-primary arcade-btn-lg"
                 onClick={handleCreate}
                 disabled={busy || !nameTrimmed}
               >
@@ -305,7 +305,7 @@ export default function LobbyPage() {
               </div>
               <button
                 id="join-game-btn"
-                className={styles.arcadeBtn}
+                className="arcade-btn arcade-btn-primary arcade-btn-lg"
                 onClick={handleJoin}
                 disabled={busy || !gameIdInput.trim() || !nameTrimmed}
               >
@@ -319,10 +319,10 @@ export default function LobbyPage() {
             <span className={styles.stat}>STATUS: <span className={styles.statGlow}>ONLINE</span></span>
             {tournamentId && (
               <button
-                className={styles.ghostBtn}
+                className="arcade-btn arcade-btn-muted arcade-btn-sm"
                 onClick={() => router.push('/bracket')}
               >
-                [ BRACKET ]
+                BRACKET
               </button>
             )}
           </div>
@@ -346,10 +346,10 @@ export default function LobbyPage() {
                 Create a sector and share the code with your opponent, or ask them to share theirs with you.
               </p>
               <button
-                className={styles.myMatchBracketBtn}
+                className="arcade-btn arcade-btn-secondary arcade-btn-sm"
                 onClick={() => router.push('/bracket')}
               >
-                [ VIEW BRACKET ]
+                VIEW BRACKET
               </button>
             </div>
           )}
@@ -380,11 +380,11 @@ export default function LobbyPage() {
                   )}
                   <button
                     id="join-contest-btn"
-                    className={styles.contestBtn}
+                    className="arcade-btn arcade-btn-primary arcade-btn-lg"
                     disabled={joinBusy || !nameTrimmed}
                     onClick={handleJoinTourney}
                   >
-                    {joinBusy ? 'REGISTERING...' : '⚡ JOIN CONTEST'}
+                    {joinBusy ? 'REGISTERING...' : 'JOIN CONTEST'}
                   </button>
                 </>
               )}
@@ -423,17 +423,18 @@ export default function LobbyPage() {
                     <span className={styles.myGameCode}>{g.inviteCode}</span>
                     <span className={styles.myGamePlayers}>{g.players.length}P</span>
                     <button
-                      className={styles.myGameBtn}
+                      className="arcade-btn arcade-btn-secondary arcade-btn-sm"
                       onClick={() => router.push(`/game/${g.id}`)}
                     >
                       {g.status === 'lobby' ? 'ENTER' : g.status === 'active' ? 'REJOIN' : 'VIEW'}
                     </button>
                     {g.hostUid === user?.uid && g.status !== 'active' && (
                       <button
-                        className={styles.myGameDelete}
+                        className="arcade-btn arcade-btn-danger arcade-btn-sm"
                         disabled={deletingId === g.id}
                         onClick={() => handleDeleteGame(g.id)}
                         title="Delete sector"
+                        style={{ padding: '6px 8px' }}
                       >
                         {deletingId === g.id ? '…' : '✕'}
                       </button>

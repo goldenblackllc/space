@@ -1,24 +1,40 @@
-/* ── Global Design System ─────────────────────────────────────────────────── */
+/* ── Space Design System ──────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
-  /* Palette */
-  --bg: #050508;
-  --bg-glass: rgba(12, 12, 22, 0.72);
-  --surface: #0d0d1a;
-  --surface-2: #12122a;
-  --border: rgba(120, 120, 255, 0.12);
-  --text-primary: #e8e8f0;
-  --text-secondary: rgba(232, 232, 240, 0.55);
-  --accent: #7b7bff;
-  --accent-glow: rgba(123, 123, 255, 0.3);
-  --accent-dim: rgba(123, 123, 255, 0.15);
-  --danger: #ff5577;
-  --success: #44ffaa;
+  /* ── Background ── */
+  --bg: #06060e;
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  /* ── Colors ── */
+  --color-cyan: #00ddff;
+  --color-gold: #ffcc44;
+  --color-red: #ff4444;
+  --color-green: #00ff88;
+  --color-white: rgba(255, 255, 255, 0.9);
+  --color-dim: rgba(255, 255, 255, 0.3);
+
+  /* ── Typography ── */
+  --font-display: 'Press Start 2P', monospace;
+  --font-data: 'Space Mono', monospace;
+
+  /* ── Type Scale ── */
+  --text-xs: 6px;
+  --text-sm: 8px;
+  --text-md: 10px;
+  --text-lg: 14px;
+  --text-xl: 22px;
+  --text-2xl: 32px;
+
+  /* ── Spacing ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  /* ── Radius ── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
 }
 
 *, *::before, *::after {
@@ -30,9 +46,8 @@
 html, body {
   height: 100%;
   background: var(--bg);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: 15px;
+  color: var(--color-white);
+  font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -40,75 +55,120 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--accent-dim); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 221, 255, 0.15); border-radius: 2px; }
 
-/* ── Utilities ────────────────────────────────────────────────────────────── */
-.mono { font-family: var(--font-mono); }
+/* ── Arcade Button Base ──────────────────────────────────────────────────── */
+/* All buttons in Space share this 3D arcade cabinet feel.                   */
+/* Only color changes between tiers — shape, animation, font are identical. */
 
-.glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid var(--border);
-}
-
-/* ── Buttons ─────────────────────────────────────────────────────────────── */
-.btn {
+.arcade-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 28px;
-  border-radius: 8px;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   border: none;
-  outline: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  user-select: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 12px 20px;
   white-space: nowrap;
-}
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn:active:not(:disabled) { transform: scale(0.97); }
-
-.btn-primary {
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 0 24px var(--accent-glow);
-}
-.btn-primary:hover:not(:disabled) {
-  box-shadow: 0 0 36px var(--accent-glow);
-  transform: translateY(-1px);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-.btn-ghost:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: rgba(123, 123, 255, 0.35);
-}
-
-/* ── Form Inputs ─────────────────────────────────────────────────────────── */
-.input {
-  width: 100%;
-  padding: 14px 18px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 15px;
-  letter-spacing: 0.04em;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-decoration: none;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+
+/* Sizes */
+.arcade-btn-sm { padding: 8px 14px; font-size: 7px; }
+.arcade-btn-lg { padding: 14px 28px; font-size: 9px; width: 100%; }
+
+/* States */
+.arcade-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.arcade-btn:active:not(:disabled) { transform: translateY(3px); }
+.arcade-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+/* ── Primary (Gold) ── */
+.arcade-btn-primary {
+  background: linear-gradient(180deg, #ffcc44 0%, #e08800 55%, #c06400 100%);
+  color: #1a0600;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 4px 0 #7a3a00,
+    0 6px 16px rgba(255, 160, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
-.input::placeholder { color: var(--text-secondary); }
+.arcade-btn-primary:hover:not(:disabled) {
+  box-shadow:
+    0 6px 0 #7a3a00,
+    0 10px 24px rgba(255, 160, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.arcade-btn-primary:active:not(:disabled) {
+  box-shadow: 0 1px 0 #7a3a00, 0 2px 8px rgba(255, 160, 0, 0.3);
+}
+.arcade-btn-primary:disabled {
+  box-shadow: 0 2px 0 #444, 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Secondary (Cyan) ── */
+.arcade-btn-secondary {
+  background: linear-gradient(180deg, #00e5ff 0%, #0088cc 60%, #005a99 100%);
+  color: #001820;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 4px 0 #003a66,
+    0 6px 16px rgba(0, 200, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.arcade-btn-secondary:hover:not(:disabled) {
+  box-shadow:
+    0 6px 0 #003a66,
+    0 10px 24px rgba(0, 200, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.arcade-btn-secondary:active:not(:disabled) {
+  box-shadow: 0 1px 0 #003a66, 0 2px 8px rgba(0, 200, 255, 0.25);
+}
+.arcade-btn-secondary:disabled {
+  box-shadow: 0 2px 0 #222, 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Danger (Red) ── */
+.arcade-btn-danger {
+  background: linear-gradient(180deg, #ff4444 0%, #cc0000 55%, #990000 100%);
+  color: #ffe0e0;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 4px 0 #600000,
+    0 6px 16px rgba(255, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.arcade-btn-danger:hover:not(:disabled) {
+  box-shadow:
+    0 6px 0 #600000,
+    0 10px 24px rgba(255, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.arcade-btn-danger:active:not(:disabled) {
+  box-shadow: 0 1px 0 #600000, 0 2px 8px rgba(255, 0, 0, 0.25);
+}
+
+/* ── Muted (Dim) ── */
+.arcade-btn-muted {
+  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 55%, rgba(255,255,255,0.03) 100%);
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 3px 0 rgba(255, 255, 255, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.arcade-btn-muted:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 5px 0 rgba(255, 255, 255, 0.08),
+    0 8px 16px rgba(0, 0, 0, 0.4);
+}
+.arcade-btn-muted:active:not(:disabled) {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.3);
+}

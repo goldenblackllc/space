@@ -121,7 +121,7 @@ export default function LoginPage() {
               <button
                 id="send-code-btn"
                 type="submit"
-                className={styles.arcadeBtn}
+                className="arcade-btn arcade-btn-primary arcade-btn-lg"
                 disabled={loading || phone.length < 7}
               >
                 {loading ? 'TRANSMITTING...' : 'AUTHENTICATE'}
@@ -160,7 +160,7 @@ export default function LoginPage() {
               <button
                 id="verify-btn"
                 type="submit"
-                className={styles.arcadeBtn}
+                className="arcade-btn arcade-btn-primary arcade-btn-lg"
                 disabled={loading || otp.length !== 6}
               >
                 {loading ? 'VERIFYING...' : 'LAUNCH'}
@@ -168,10 +168,10 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                className={styles.ghostBtn}
+                className="arcade-btn arcade-btn-muted arcade-btn-sm"
                 onClick={() => { setStep('phone'); setOtp(''); setError(''); }}
               >
-                [ CHANGE ID ]
+                CHANGE ID
               </button>
             </motion.form>
           )}

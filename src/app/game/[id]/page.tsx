@@ -1041,11 +1041,11 @@ export default function GamePage() {
           <span className={styles.hudLogo}>SPACE</span>
           <button
             id="music-toggle-btn"
-            className={`${styles.musicToggle} ${musicOn ? styles.musicToggleOn : ''}`}
+            className="arcade-btn arcade-btn-muted arcade-btn-sm"
             onClick={toggleMusic}
             aria-label={musicOn ? 'Pause background music' : 'Play background music'}
           >
-            [ MUSIC: {musicOn ? 'ON' : 'OFF'} ]
+            MUSIC: {musicOn ? 'ON' : 'OFF'}
           </button>
         </div>
         <div className={styles.hudRow2}>
@@ -1163,18 +1163,18 @@ export default function GamePage() {
       )}
 
       {/* ── Lobby link ── */}
-      <button id="leave-game-btn" className={styles.lobbyLink} onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}>
-        [&lt;] LOBBY
+      <button id="leave-game-btn" className="arcade-btn arcade-btn-muted arcade-btn-sm" onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}>
+        LOBBY
       </button>
 
       {/* ── Forfeit / Surrender button ── */}
       {game.status === 'active' && (
         <button
           id="surrender-btn"
-          className={styles.surrenderBtn}
+          className="arcade-btn arcade-btn-danger arcade-btn-sm"
           onClick={() => { soundManager.playBlip(); setShowSurrenderConfirm(true); }}
         >
-          [⚑] FORFEIT
+          FORFEIT
         </button>
       )}
 
@@ -1275,24 +1275,24 @@ export default function GamePage() {
                         : 'GALAXY LOST TO ENEMY FORCES'}
                   </p>
                   <button
-                    className={styles.gameOverBtn}
+                    className="arcade-btn arcade-btn-secondary arcade-btn-lg"
                     onClick={() => {
                       soundManager.playBlip();
                       router.push('/lobby');
                     }}
                   >
-                    [ RETURN TO LOBBY ]
+                    RETURN TO LOBBY
                   </button>
                   {process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID && (
                     <button
-                      className={styles.gameOverBtn}
-                      style={{ marginTop: 12, fontSize: 10, opacity: 0.7 }}
+                      className="arcade-btn arcade-btn-muted arcade-btn-sm"
+                      style={{ marginTop: 12 }}
                       onClick={() => {
                         soundManager.playBlip();
                         router.push('/bracket');
                       }}
                     >
-                      [ VIEW BRACKET ]
+                      VIEW BRACKET
                     </button>
                   )}
                 </div>
@@ -1318,22 +1318,22 @@ export default function GamePage() {
               <h2 className={styles.lobbyOverlayTitle}>AWAITING COMMANDERS</h2>
               <p className={styles.lobbyOverlaySector}>SECTOR: <span className={styles.lobbyOverlayCode}>{game.inviteCode}</span></p>
               <button
-                className={styles.lobbyOverlayCopy}
+                className="arcade-btn arcade-btn-secondary arcade-btn-sm"
                 onClick={() => {
                   navigator.clipboard.writeText(game.inviteCode).then(() => showToast('CODE COPIED!'));
                 }}
               >
-                [⎘] COPY CODE
+                COPY CODE
               </button>
 
               {/* ── Team Mode Toggle (host only) ── */}
               {user?.uid === game.hostUid && (
                 <div className={styles.teamToggle}>
                   <button
-                    className={`${styles.teamToggleBtn} ${teamModeEnabled ? styles.teamToggleBtnActive : ''}`}
+                    className={`arcade-btn arcade-btn-sm ${teamModeEnabled ? 'arcade-btn-secondary' : 'arcade-btn-muted'}`}
                     onClick={() => setTeamModeEnabled(!teamModeEnabled)}
                   >
-                    {teamModeEnabled ? '✓ TEAM MODE' : 'ENABLE TEAMS'}
+                    {teamModeEnabled ? 'TEAM MODE ON' : 'ENABLE TEAMS'}
                   </button>
                   {teamModeEnabled && (
                     <div className={styles.teamCountPicker}>
@@ -1386,7 +1386,7 @@ export default function GamePage() {
                         <span className={styles.lobbyOverlayDot} />
                       )}
                       {p.name || p.uid.slice(0, 8)}
-                      {p.uid === game.hostUid ? ' [HOST]' : ''}
+                      {p.uid === game.hostUid ? ' • HOST' : ''}
                       {teamModeEnabled && (
                         <span
                           className={styles.lobbyOverlayTeamLabel}
@@ -1405,20 +1405,20 @@ export default function GamePage() {
 
               {/* ── Spectate Link ── */}
               <button
-                className={styles.lobbyOverlayCopy}
+                className="arcade-btn arcade-btn-secondary arcade-btn-sm"
                 onClick={() => {
                   const url = `${window.location.origin}/game/${gameId}/spectate`;
                   navigator.clipboard.writeText(url).then(() => showToast('SPECTATOR LINK COPIED!'));
                 }}
               >
-                [◎] COPY SPECTATOR LINK
+                COPY SPECTATOR LINK
               </button>
 
               <button
-                className={styles.lobbyOverlayBack}
+                className="arcade-btn arcade-btn-muted arcade-btn-sm"
                 onClick={() => { soundManager.playBlip(); router.push('/lobby'); }}
               >
-                [&lt;] BACK TO LOBBY
+                BACK TO LOBBY
               </button>
 
               {user?.uid === game.hostUid ? (

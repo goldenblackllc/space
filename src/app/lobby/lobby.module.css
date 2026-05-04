@@ -5,7 +5,7 @@
   padding: 24px;
   position: relative;
   overflow: hidden;
-  background: #06060e;
+  background: var(--bg);
 }
 
 /* CRT */
@@ -64,22 +64,7 @@
   text-shadow: 0 0 12px rgba(0, 221, 255, 0.4);
 }
 
-.ghostBtn {
-  background: transparent;
-  border: none;
-  color: rgba(0, 221, 255, 0.8);
-  padding: 8px 14px;
-  border-radius: 4px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 6px;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.ghostBtn:hover {
-  color: #00ddff;
-  text-shadow: 0 0 8px rgba(0, 221, 255, 0.5);
-}
+
 
 /* ── Content ── */
 .content {
@@ -227,47 +212,7 @@
   align-items: center;
 }
 
-/* ── Arcade button ── */
-.arcadeBtn {
-  width: 100%;
-  padding: 14px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  color: #1a0600;
-  background: linear-gradient(180deg, #ffcc44 0%, #e08800 55%, #c06400 100%);
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow:
-    0 4px 0 #7a3a00,
-    0 8px 20px rgba(255, 160, 0, 0.4),
-    0 0 32px rgba(255, 160, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: transform 0.1s, box-shadow 0.1s;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-.arcadeBtn:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 0 #7a3a00,
-    0 12px 28px rgba(255, 160, 0, 0.5),
-    0 0 48px rgba(255, 160, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-.arcadeBtn:active {
-  transform: translateY(3px);
-  box-shadow:
-    0 1px 0 #7a3a00,
-    0 3px 10px rgba(255, 160, 0, 0.3),
-    inset 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-.arcadeBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 3px 0 #444, 0 5px 12px rgba(0, 0, 0, 0.3);
-}
+
 
 /* ── Error ── */
 .error {
@@ -371,51 +316,7 @@
   flex-shrink: 0;
 }
 
-.myGameBtn {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  letter-spacing: 0.06em;
-  padding: 6px 12px;
-  border-radius: 4px;
-  background: rgba(0, 221, 255, 0.08);
-  border: 1px solid rgba(0, 221, 255, 0.2);
-  color: rgba(0, 221, 255, 0.7);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.myGameBtn:hover {
-  background: rgba(0, 221, 255, 0.15);
-  border-color: rgba(0, 221, 255, 0.5);
-  color: #00ddff;
-}
 
-.myGameDelete {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  background: rgba(255, 60, 60, 0.08);
-  border: 1px solid rgba(255, 60, 60, 0.2);
-  color: rgba(255, 80, 80, 0.5);
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  padding: 0;
-}
-.myGameDelete:hover:not(:disabled) {
-  background: rgba(255, 60, 60, 0.2);
-  border-color: rgba(255, 60, 60, 0.5);
-  color: #ff4444;
-}
-.myGameDelete:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
 
 /* ── Join Contest Card ── */
 .contestBox {
@@ -459,37 +360,7 @@
   line-height: 1.8;
 }
 
-.contestBtn {
-  width: 100%;
-  padding: 14px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  color: #1a0c00;
-  background: linear-gradient(180deg, #ffe066 0%, #e0a000 55%, #b07000 100%);
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow:
-    0 4px 0 #7a4d00,
-    0 8px 20px rgba(255, 180, 0, 0.35);
-  transition: transform 0.1s, box-shadow 0.1s;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-.contestBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 #7a4d00, 0 12px 28px rgba(255, 180, 0, 0.5);
-}
-.contestBtn:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #7a4d00, 0 2px 8px rgba(255, 180, 0, 0.3);
-}
-.contestBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 3px 0 #444;
-}
+
 
 .contestAlready {
   font-family: 'Press Start 2P', monospace;
@@ -600,22 +471,7 @@
   margin: 0;
 }
 
-.myMatchBracketBtn {
-  background: none;
-  border: none;
-  color: rgba(255, 100, 60, 0.85);
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  padding: 8px 0;
-  cursor: pointer;
-  letter-spacing: 0.06em;
-  transition: color 0.15s, text-shadow 0.15s;
-  align-self: flex-start;
-}
-.myMatchBracketBtn:hover {
-  color: #ff6644;
-  text-shadow: 0 0 8px rgba(255, 80, 40, 0.5);
-}
+
 
 /* ── Slider Input ── */
 .sliderInput {
