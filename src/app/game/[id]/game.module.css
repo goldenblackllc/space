@@ -1383,3 +1383,44 @@
   margin-top: 4px;
   font-style: normal;
 }
+
+/* ── Team Count Picker ── */
+.teamCountPicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.teamCountBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #00f5ff;
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.teamCountBtn:hover:not(:disabled) {
+  background: rgba(0, 200, 255, 0.2);
+  border-color: rgba(0, 200, 255, 0.6);
+}
+.teamCountBtn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.teamCountLabel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #00f5ff;
+  letter-spacing: 0.08em;
+  min-width: 64px;
+  text-align: center;
+}

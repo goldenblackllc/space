@@ -297,6 +297,7 @@ export default function GamePage() {
 
   // ── Team Mode (Lobby only) ────────────────────────────────────────────────
   const [teamModeEnabled, setTeamModeEnabled] = useState(false);
+  const [teamCount, setTeamCount] = useState(2); // host picks 2–6 teams
   // Map of UID → team index (0, 1, 2, ...)
   const [teamAssignments, setTeamAssignments] = useState<Record<string, number>>({});
   const TEAM_NAMES = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
@@ -1334,6 +1335,25 @@ export default function GamePage() {
                   >
                     {teamModeEnabled ? '✓ TEAM MODE' : 'ENABLE TEAMS'}
                   </button>
+                  {teamModeEnabled && (
+                    <div className={styles.teamCountPicker}>
+                      <button
+                        className={styles.teamCountBtn}
+                        disabled={teamCount <= 2}
+                        onClick={() => setTeamCount((c) => Math.max(2, c - 1))}
+                      >
+                        −
+                      </button>
+                      <span className={styles.teamCountLabel}>{teamCount} TEAMS</span>
+                      <button
+                        className={styles.teamCountBtn}
+                        disabled={teamCount >= 6}
+                        onClick={() => setTeamCount((c) => Math.min(6, c + 1))}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1344,14 +1364,13 @@ export default function GamePage() {
                 {allPlayers.map((p) => {
                   const teamIdx = teamAssignments[p.uid] ?? 0;
                   const teamColor = TEAM_COLORS[teamIdx % TEAM_COLORS.length];
-                  const numTeams = Math.max(2, Math.min(Math.ceil(allPlayers.length / 2), 6));
                   return (
                     <div
                       key={p.uid}
                       className={styles.lobbyOverlayPlayer}
                       onClick={() => {
                         if (teamModeEnabled && user?.uid === game.hostUid) {
-                          cycleTeam(p.uid, numTeams);
+                          cycleTeam(p.uid, teamCount);
                         }
                       }}
                       style={{
