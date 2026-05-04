@@ -78,6 +78,93 @@ export async function createGame(
 }
 
 /**
+ * Find an existing game linked to a specific Challonge match.
+ * Returns the game ID if found, null otherwise.
+ */
+export async function findGameByChallongeMatch(matchId: string): Promise<string | null> {
+  const q = query(
+    collection(db, 'games'),
+    where('challongeMatchId', '==', matchId),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return snap.docs[0].id;
+}
+
+/**
+ * Auto-create a game for a Challonge tournament match.
+ * Both players are added simultaneously with home planets assigned.
+ * The game is linked to the Challonge match ID to prevent duplicates
+ * and to restrict auto-reporting to only official tournament games.
+ */
+export async function createTournamentGame(
+  player1Uid: string,
+  player1Name: string,
+  player2Uid: string,
+  player2Name: string,
+  challongeMatchId: string,
+  planetCount: number = 25
+): Promise<string> {
+  // Check if game already exists for this match
+  const existingId = await findGameByChallongeMatch(challongeMatchId);
+  if (existingId) return existingId;
+
+  const gameRef = doc(collection(db, 'games'));
+  const planets = generatePlanets(planetCount);
+  const inviteCode = generateInviteCode();
+
+  const gameData: Omit<Game, 'id'> = {
+    status: 'lobby',
+    currentYear: 0,
+    players: [player1Uid, player2Uid],
+    turn: player1Uid,
+    turnEnded: {},
+    hostUid: player1Uid,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    inviteCode,
+    planetCount,
+    maxPlayers: 2,
+    challongeMatchId,
+  };
+
+  await setDoc(gameRef, gameData);
+
+  // Write planets
+  for (const planet of planets) {
+    await setDoc(doc(db, 'games', gameRef.id, 'planets', planet.id), planet);
+  }
+
+  // Assign home planets and create player docs for both players
+  const homePlanet1 = await assignHomePlanet(gameRef.id, player1Uid, planets);
+  const p1Data: Player = {
+    uid: player1Uid,
+    name: player1Name,
+    phone: '',
+    homePlanetId: homePlanet1,
+    revealedPlanets: [homePlanet1],
+  };
+  await setDoc(doc(db, 'games', gameRef.id, 'players', player1Uid), p1Data);
+
+  // Re-fetch planets so assignHomePlanet picks a different one
+  const planetsSnap = await getDocs(collection(db, 'games', gameRef.id, 'planets'));
+  const updatedPlanets = planetsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<typeof planets[0], 'id'>) })) as typeof planets;
+
+  const homePlanet2 = await assignHomePlanet(gameRef.id, player2Uid, updatedPlanets);
+  const p2Data: Player = {
+    uid: player2Uid,
+    name: player2Name,
+    phone: '',
+    homePlanetId: homePlanet2,
+    revealedPlanets: [homePlanet2],
+  };
+  await setDoc(doc(db, 'games', gameRef.id, 'players', player2Uid), p2Data);
+
+  return gameRef.id;
+}
+
+/**
  * Host-only: start the game. Requires at least 2 players.
  * Transitions status from 'lobby' → 'active'.
  * If teams are provided, saves them to the game doc and updates player teamIds.

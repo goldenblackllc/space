@@ -73,6 +73,8 @@ export interface Game {
   turnTimerEnabled?: boolean;   // true = escalating turn timer is active
   gameStartedAt?: number;       // Unix ms when game transitioned to 'active'
   turnStartedAt?: number;       // Unix ms when the current turn (year) began
+  // ── Tournament Fields ──
+  challongeMatchId?: string;    // Links this game to a specific Challonge match
 }
 
 export interface CombatPhase {

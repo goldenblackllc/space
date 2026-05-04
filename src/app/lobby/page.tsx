@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createGame, joinGame, getMyGames, deleteGame } from '@/lib/firestore';
+import { createGame, joinGame, getMyGames, deleteGame, createTournamentGame, findGameByChallongeMatch } from '@/lib/firestore';
 import { motion } from 'framer-motion';
 import type { Game } from '@/lib/types';
 import styles from './lobby.module.css';
@@ -27,7 +27,7 @@ export default function LobbyPage() {
     participantCount: number;
     maxParticipants: number | null;
     participants: string[];
-    myMatch: { opponentName: string; round: number } | null;
+    myMatch: { opponentName: string; opponentUid: string; matchId: string; round: number; gameId: string | null } | null;
   } | null>(null);
   const [joinBusy, setJoinBusy] = useState(false);
   const [joinMsg, setJoinMsg] = useState('');
@@ -68,7 +68,7 @@ export default function LobbyPage() {
 
       // Find my open match
       // v1: matches is array of { match: { id, state, round, player1_id, player2_id } }
-      let myMatch: { opponentName: string; round: number } | null = null;
+      let myMatch: { opponentName: string; opponentUid: string; matchId: string; round: number; gameId: string | null } | null = null;
       if (me) {
         const matches: { id: string | number; state: string; round: number; player1_id: string | number; player2_id: string | number }[] =
           (mJson as { match: { id: string | number; state: string; round: number; player1_id: string | number; player2_id: string | number } }[])
@@ -86,9 +86,38 @@ export default function LobbyPage() {
               ? openMatch.player2_id
               : openMatch.player1_id;
           const opponent = participantObjs.find((p) => String(p.id) === String(opponentId));
+          const opponentUid = opponent?.misc ?? '';
+          const matchIdStr = String(openMatch.id);
+
+          // Check if a game already exists for this match
+          let gameId: string | null = null;
+          try {
+            gameId = await findGameByChallongeMatch(matchIdStr);
+          } catch { /* ignore */ }
+
+          // Auto-create the game if it doesn't exist and we know both UIDs
+          if (!gameId && opponentUid && user?.uid) {
+            const myName = localStorage.getItem('commanderName') || 'Commander';
+            const oppName = opponent?.name ?? 'Opponent';
+            try {
+              gameId = await createTournamentGame(
+                user.uid, myName,
+                opponentUid, oppName,
+                matchIdStr
+              );
+              // Refresh the games list so it shows up
+              getMyGames(user.uid).then(setMyGames).catch(() => {});
+            } catch (e) {
+              console.error('[auto-create tournament game]', e);
+            }
+          }
+
           myMatch = {
             opponentName: opponent?.name ?? 'TBD',
+            opponentUid,
+            matchId: matchIdStr,
             round: openMatch.round,
+            gameId,
           };
         }
       }
@@ -343,10 +372,26 @@ export default function LobbyPage() {
                 <span className={styles.myMatchOpponent}>VS. {tourney.myMatch.opponentName.toUpperCase()}</span>
               </div>
               <p className={styles.myMatchHint}>
-                Create a sector and share the code with your opponent, or ask them to share theirs with you.
+                Your match has been auto-created. Both players are ready.
               </p>
+              {tourney.myMatch.gameId ? (
+                <button
+                  className="arcade-btn arcade-btn-primary arcade-btn-lg"
+                  onClick={() => router.push(`/game/${tourney.myMatch!.gameId}`)}
+                >
+                  PLAY MATCH
+                </button>
+              ) : (
+                <button
+                  className="arcade-btn arcade-btn-muted arcade-btn-lg"
+                  disabled
+                >
+                  SETTING UP...
+                </button>
+              )}
               <button
                 className="arcade-btn arcade-btn-secondary arcade-btn-sm"
+                style={{ marginTop: 8 }}
                 onClick={() => router.push('/bracket')}
               >
                 VIEW BRACKET

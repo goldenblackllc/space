@@ -219,6 +219,8 @@ export default function GamePage() {
   useEffect(() => {
     const tournamentId = process.env.NEXT_PUBLIC_CHALLONGE_TOURNAMENT_ID;
     if (!tournamentId || !game || game.status !== 'ended' || !game.winnerUid) return;
+    // Only report official tournament games (those created via auto-match)
+    if (!game.challongeMatchId) return;
     if (challongeReportedRef.current) return;
     challongeReportedRef.current = true;
 
