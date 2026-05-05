@@ -1,8 +1,7 @@
 // ─── Turn Timer Utilities ─────────────────────────────────────────────────────
 //
-// Compressed tournament timer (3-day games):
-//   Day 1:  12 hours per turn — opening moves, claim territory
-//   Day 2:   6 hours per turn — mid-game push, pressure mounts
+// Tournament timer (3-day games, school-friendly):
+//   Day 1-2: 12 hours per turn — enough to play before/after school
 //   Day 3+:  Tiebreaker — game ends, most planets wins
 
 const MS_HOUR = 60 * 60 * 1000;
@@ -11,7 +10,7 @@ const MS_DAY = 24 * MS_HOUR;
 /** Timer durations in ms, indexed by game day (0-based) */
 const TIMER_SCHEDULE: number[] = [
   12 * MS_HOUR, // Day 1
-  6 * MS_HOUR,  // Day 2
+  12 * MS_HOUR, // Day 2
   // Day 3+ = tiebreaker (0 = immediate)
 ];
 
