@@ -444,9 +444,41 @@ export async function autoEndExpiredTurns(gameId: string): Promise<boolean> {
   const playersNotDone = game.players.filter((pid) => !game.turnEnded[pid]);
   if (playersNotDone.length === 0) return false; // all done already
 
-  // Mark all remaining players as done
+  // Track consecutive missed turns per player
+  const missedTurns: Record<string, number> = game.missedTurns ?? {};
+  const MAX_CONSECUTIVE_MISSES = 2;
+
   for (const pid of playersNotDone) {
-    // Each call will check if all are done and advance if so
+    missedTurns[pid] = (missedTurns[pid] ?? 0) + 1;
+  }
+
+  // Reset counter for players who DID submit their turn
+  for (const pid of game.players) {
+    if (game.turnEnded[pid]) {
+      missedTurns[pid] = 0;
+    }
+  }
+
+  // Save updated miss counts
+  await updateDoc(doc(db, 'games', gameId), { missedTurns });
+
+  // Check for auto-forfeit (2 consecutive misses)
+  for (const pid of playersNotDone) {
+    if (missedTurns[pid] >= MAX_CONSECUTIVE_MISSES) {
+      // This player is auto-forfeited — opponent wins
+      const opponentUid = game.players.find((p) => p !== pid) ?? null;
+      if (opponentUid) {
+        await updateDoc(doc(db, 'games', gameId), {
+          status: 'ended',
+          winnerUid: opponentUid,
+        });
+        return true;
+      }
+    }
+  }
+
+  // Mark all remaining players as done (auto-advance their turn)
+  for (const pid of playersNotDone) {
     await endPlayerTurn(gameId, pid);
   }
 

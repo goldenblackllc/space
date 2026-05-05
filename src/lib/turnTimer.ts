@@ -1,26 +1,21 @@
 // ─── Turn Timer Utilities ─────────────────────────────────────────────────────
 //
-// Escalating turn timer for tournament play:
-//   Days 1–4: 24 hours per turn
-//   Day 5:    12 hours per turn
-//   Day 6:     6 hours per turn
-//   Day 7+:    Tiebreaker — game ends, most planets wins
+// Compressed tournament timer (3-day games):
+//   Day 1:  12 hours per turn — opening moves, claim territory
+//   Day 2:   6 hours per turn — mid-game push, pressure mounts
+//   Day 3+:  Tiebreaker — game ends, most planets wins
 
 const MS_HOUR = 60 * 60 * 1000;
 const MS_DAY = 24 * MS_HOUR;
 
 /** Timer durations in ms, indexed by game day (0-based) */
 const TIMER_SCHEDULE: number[] = [
-  24 * MS_HOUR, // Day 1
-  24 * MS_HOUR, // Day 2
-  24 * MS_HOUR, // Day 3
-  24 * MS_HOUR, // Day 4
-  12 * MS_HOUR, // Day 5
-  6 * MS_HOUR,  // Day 6
-  // Day 7+ = tiebreaker (0 = immediate)
+  12 * MS_HOUR, // Day 1
+  6 * MS_HOUR,  // Day 2
+  // Day 3+ = tiebreaker (0 = immediate)
 ];
 
-const TIEBREAKER_DAY = 7; // 1-indexed: game ends after day 7
+const TIEBREAKER_DAY = 3; // 1-indexed: game ends on day 3
 
 export interface TurnTimerInfo {
   /** Whether the timer is active for this game */

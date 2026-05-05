@@ -75,6 +75,7 @@ export interface Game {
   turnStartedAt?: number;       // Unix ms when the current turn (year) began
   // ── Tournament Fields ──
   challongeMatchId?: string;    // Links this game to a specific Challonge match
+  missedTurns?: Record<string, number>;  // UID → consecutive missed turn count (2 = auto-forfeit)
 }
 
 export interface CombatPhase {
