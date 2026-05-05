@@ -102,7 +102,7 @@ export default function LoginPage() {
               transition={{ duration: 0.2 }}
             >
               <div className={styles.fieldGroup}>
-                <label htmlFor="phone-input" className={styles.label}>COMMANDER ID</label>
+                <label htmlFor="phone-input" className={styles.label}>PHONE NUMBER</label>
                 <input
                   id="phone-input"
                   className={styles.input}
