@@ -161,6 +161,17 @@ export default function LobbyPage() {
       }
       setJoinMsg(`${nameTrimmed} registered!`);
       await fetchTourney(); // refresh count
+
+      // Notify via email (fire and forget — don't block UI)
+      fetch('/api/notify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerName: nameTrimmed,
+          totalPlayers: (tourney?.participantCount ?? 0) + 1,
+          maxPlayers: tourney?.maxParticipants ?? null,
+        }),
+      }).catch(() => {});
     } catch (e) {
       setJoinMsg(e instanceof Error ? e.message : 'Registration failed');
     } finally {
