@@ -420,16 +420,13 @@ export default function LobbyPage() {
                 <p className={styles.contestFull}>TOURNAMENT IS FULL — REGISTRATION CLOSED</p>
               ) : (
                 <>
-                  {!nameTrimmed && (
-                    <p className={styles.contestWarn}>Enter your Commander Name above to register.</p>
-                  )}
                   <button
                     id="join-contest-btn"
                     className="arcade-btn arcade-btn-primary arcade-btn-lg"
                     disabled={joinBusy || !nameTrimmed}
                     onClick={handleJoinTourney}
                   >
-                    {joinBusy ? 'REGISTERING...' : 'JOIN CONTEST'}
+                    {joinBusy ? 'REGISTERING...' : !nameTrimmed ? 'ENTER NAME ABOVE FIRST' : 'JOIN CONTEST'}
                   </button>
                 </>
               )}
